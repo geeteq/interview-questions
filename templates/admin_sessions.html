@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Interview — Sessions</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:        #0f1117;
+    --surface:   #161925;
+    --border:    #252840;
+    --muted:     #374151;
+    --text:      #e8eaf0;
+    --sub:       #94a3b8;
+    --accent:    #6366f1;
+    --accent-lt: #818cf8;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── Nav ── */
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: .75rem 2rem; display: flex; align-items: center; gap: 1.5rem; }
+  .header h1 { font-size: 1.05rem; font-weight: 700; color: var(--accent-lt); white-space: nowrap; }
+  .nav-tabs { display: flex; gap: .25rem; }
+  .nav-tab { font-size: .82rem; font-weight: 600; padding: .35rem .85rem; border-radius: 7px; text-decoration: none; color: var(--sub); transition: all .15s; }
+  .nav-tab:hover  { background: #1e2130; color: var(--text); }
+  .nav-tab.active { background: #1e2130; color: var(--accent-lt); }
+
+  /* ── Layout ── */
+  main { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  .page-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+  .page-hd h2 { font-size: 1.25rem; font-weight: 700; }
+  .page-hd p  { font-size: .82rem; color: var(--sub); margin-top: .2rem; }
+
+  /* ── Stats row ── */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.75rem; }
+  @media (max-width: 700px) { .stats-row { grid-template-columns: 1fr 1fr; } }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.3rem; }
+  .stat-label { font-size: .7rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--sub); margin-bottom: .4rem; }
+  .stat-value { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+  .stat-sub   { font-size: .75rem; color: var(--sub); margin-top: .3rem; }
+  .stat-indigo { color: var(--accent-lt); }
+  .stat-green  { color: #4ade80; }
+  .stat-amber  { color: #fbbf24; }
+  .stat-purple { color: #c084fc; }
+
+  /* ── Sessions table ── */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  thead th { text-align: left; padding: .7rem 1rem; font-size: .7rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--sub); border-bottom: 1px solid var(--border); }
+  tbody tr { cursor: pointer; transition: background .12s; }
+  tbody tr:hover { background: #11141d; }
+  tbody tr.open   { background: #11141d; }
+  tbody td { padding: .75rem 1rem; border-bottom: 1px solid #1a1e2e; vertical-align: middle; }
+  tbody tr:last-child > td { border-bottom: none; }
+
+  .td-name { font-weight: 600; color: var(--text); }
+  .td-date { color: var(--sub); white-space: nowrap; }
+  .td-score { font-weight: 700; color: var(--accent-lt); }
+  .td-pct { font-weight: 700; }
+
+  .pct-bar-wrap { display: flex; align-items: center; gap: .5rem; }
+  .pct-bar { width: 80px; height: 6px; background: #1e2130; border-radius: 999px; overflow: hidden; }
+  .pct-fill { height: 100%; border-radius: 999px; }
+
+  .status-badge { font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: .2rem .55rem; border-radius: 5px; }
+  .status-complete { background: #14291a; color: #4ade80; border: 1px solid #1a4024; }
+  .status-active   { background: #1e2d48; color: #60a5fa; border: 1px solid #1e3a5f; }
+
+  .grade-badge { font-size: .72rem; font-weight: 700; padding: .2rem .55rem; border-radius: 5px; }
+
+  /* ── Detail panel (accordion) ── */
+  .detail-row { display: none; }
+  .detail-row.open { display: table-row; }
+  .detail-cell { padding: 0 !important; border-bottom: 1px solid var(--border) !important; }
+  .detail-inner { padding: 1.25rem 1.5rem 1.5rem; background: #0d1018; }
+
+  .detail-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem; }
+  .detail-title { font-size: 1rem; font-weight: 700; }
+  .detail-meta  { font-size: .8rem; color: var(--sub); margin-top: .2rem; }
+
+  .score-summary { text-align: right; }
+  .score-big { font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, #6366f1, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .score-sub { font-size: .78rem; color: var(--sub); }
+
+  .resp-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  .resp-table th { text-align: left; padding: .5rem .7rem; font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--sub); border-bottom: 1px solid var(--border); }
+  .resp-table td { padding: .65rem .7rem; border-bottom: 1px solid #1a1e2e; vertical-align: top; }
+  .resp-table tr:last-child td { border-bottom: none; }
+  .resp-table .col-q    { color: #cbd5e1; max-width: 260px; }
+  .resp-table .col-ans  { color: var(--sub); font-style: italic; max-width: 220px; }
+  .resp-table .col-score { font-weight: 700; color: var(--accent-lt); white-space: nowrap; }
+  .resp-table .col-comment { color: var(--muted); font-size: .78rem; }
+
+  /* ── Chat log ── */
+  .chat-log { margin-top: 1.25rem; }
+  .chat-log-title { font-size: .7rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--sub); margin-bottom: .65rem; display: flex; align-items: center; gap: .5rem; }
+  .chat-log-title span { background: #1e2130; border: 1px solid var(--border); border-radius: 5px; padding: .1rem .45rem; font-size: .68rem; color: var(--muted); }
+  .chat-log-msgs { display: flex; flex-direction: column; gap: .4rem; }
+  .chat-log-msg { background: #11141d; border: 1px solid var(--border); border-radius: 8px; padding: .45rem .75rem; display: flex; gap: .75rem; align-items: baseline; }
+  .chat-log-time   { font-size: .7rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+  .chat-log-author { font-size: .75rem; font-weight: 700; color: var(--accent-lt); white-space: nowrap; flex-shrink: 0; min-width: 80px; }
+  .chat-log-text   { font-size: .82rem; color: var(--text); line-height: 1.4; }
+  .chat-log-empty  { font-size: .8rem; color: var(--muted); font-style: italic; }
+
+  .quality-badge { font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: .18rem .5rem; border-radius: 5px; white-space: nowrap; }
+  .q-Outstanding, .q-Excellent { background: #14291a; color: #4ade80; border: 1px solid #1a4024; }
+  .q-Strong, .q-Good           { background: #1a2535; color: #60a5fa; border: 1px solid #1e3050; }
+  .q-Adequate, .q-Acceptable   { background: #2a2410; color: #fbbf24; border: 1px solid #3d350f; }
+  .q-Weak, .q-Poor             { background: #2a1a10; color: #f97316; border: 1px solid #3d240f; }
+  .q-Dangerous                 { background: #2a1010; color: #f87171; border: 1px solid #3d1010; }
+
+  .chevron { transition: transform .2s; display: inline-block; font-size: .7rem; color: var(--muted); }
+  tr.open .chevron { transform: rotate(180deg); }
+
+  /* ── Empty state ── */
+  .empty { text-align: center; padding: 3rem; color: var(--sub); }
+  .empty p { margin-top: .5rem; font-size: .85rem; }
+
+  .print-btn { font-size: .78rem; padding: .3rem .75rem; background: #1e2130; color: var(--sub); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: all .15s; }
+  .print-btn:hover { color: var(--text); border-color: #3d4166; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🎙 Interview</h1>
+  <nav class="nav-tabs">
+    <a href="/admin"           class="nav-tab">Interview</a>
+    <a href="/admin/questions" class="nav-tab">Questions</a>
+    <a href="/admin/sessions"  class="nav-tab active">Sessions</a>
+  </nav>
+</div>
+
+<main>
+  <div class="page-hd">
+    <div>
+      <h2>Session Records</h2>
+      <p id="page-sub">Loading…</p>
+    </div>
+    <button class="print-btn" onclick="window.print()">🖨 Print</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Total sessions</div>
+      <div class="stat-value stat-indigo" id="stat-total">—</div>
+      <div class="stat-sub">all time</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Completed</div>
+      <div class="stat-value stat-green" id="stat-done">—</div>
+      <div class="stat-sub" id="stat-done-pct">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg score</div>
+      <div class="stat-value stat-amber" id="stat-avg">—</div>
+      <div class="stat-sub">among completed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Top grade</div>
+      <div class="stat-value stat-purple" id="stat-top">—</div>
+      <div class="stat-sub" id="stat-top-name">—</div>
+    </div>
+  </div>
+
+  <!-- Sessions table -->
+  <div class="table-wrap">
+    <table id="sessions-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Candidate</th>
+          <th>Date</th>
+          <th>Duration</th>
+          <th>Score</th>
+          <th>Result</th>
+          <th>Grade</th>
+          <th>Status</th>
+          <th style="width:24px"></th>
+        </tr>
+      </thead>
+      <tbody id="sessions-body">
+        <tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--sub);">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+  let sessions     = [];
+  let resultsCache = {};    // { sid: resultsData }
+  let openId       = null;
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  async function api(path) {
+    const r = await fetch(path);
+    return r.json();
+  }
+  function esc(s) {
+    return String(s || "")
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+  function fmtDate(iso) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleString(undefined, { dateStyle:"medium", timeStyle:"short" });
+  }
+  function duration(start, end) {
+    if (!start || !end) return "—";
+    const ms = new Date(end) - new Date(start);
+    const m  = Math.floor(ms / 60000);
+    const s  = Math.floor((ms % 60000) / 1000);
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  }
+  function pctColor(pct) {
+    if (pct >= 85) return "#4ade80";
+    if (pct >= 70) return "#60a5fa";
+    if (pct >= 55) return "#fbbf24";
+    if (pct >= 35) return "#f97316";
+    return "#f87171";
+  }
+  function gradeBadge(grade) {
+    const cls = "quality-badge q-" + (grade || "").replace(/[^a-zA-Z]/g,"");
+    return `<span class="${cls}">${esc(grade)}</span>`;
+  }
+  function qualBadge(q) {
+    const cls = "quality-badge q-" + (q || "").replace(/[^a-zA-Z]/g,"");
+    return `<span class="${cls}">${esc(q)}</span>`;
+  }
+
+  // ── Load sessions ──────────────────────────────────────────────────────────
+  async function load() {
+    sessions = await api("/api/sessions");
+    renderStats();
+    renderTable();
+  }
+
+  // ── Stats ──────────────────────────────────────────────────────────────────
+  async function renderStats() {
+    const total    = sessions.length;
+    const done     = sessions.filter(s => s.completed_at);
+    const donePct  = total ? Math.round(done.length / total * 100) : 0;
+
+    document.getElementById("stat-total").textContent = total;
+    document.getElementById("stat-done").textContent  = done.length;
+    document.getElementById("stat-done-pct").textContent = `${donePct}% completion rate`;
+
+    if (!done.length) {
+      document.getElementById("stat-avg").textContent       = "—";
+      document.getElementById("stat-top").textContent       = "—";
+      document.getElementById("stat-top-name").textContent  = "no results yet";
+      document.getElementById("page-sub").textContent       = `${total} session${total !== 1 ? "s" : ""} recorded`;
+      return;
+    }
+
+    // Fetch all completed results in parallel for stats
+    const allResults = await Promise.all(done.map(s => api(`/api/sessions/${s.id}/results`)));
+    allResults.forEach((r, i) => { resultsCache[done[i].id] = r; });
+
+    const percentages = allResults.map(r => r.percentage);
+    const avg  = Math.round(percentages.reduce((a,b) => a+b, 0) / percentages.length);
+    const best = allResults.reduce((a, b) => b.percentage > a.percentage ? b : a);
+
+    document.getElementById("stat-avg").textContent       = avg + "%";
+    document.getElementById("stat-top").textContent       = best.percentage + "%";
+    document.getElementById("stat-top-name").textContent  = best.candidate;
+    document.getElementById("page-sub").textContent       =
+      `${total} session${total !== 1 ? "s" : ""} · ${done.length} completed · avg ${avg}%`;
+  }
+
+  // ── Table ──────────────────────────────────────────────────────────────────
+  function renderTable() {
+    const tbody = document.getElementById("sessions-body");
+    if (!sessions.length) {
+      tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><strong>No sessions yet.</strong><p>Start an interview from the Interview tab to create a session.</p></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = sessions.map((s, i) => renderSessionRows(s, i)).join("");
+    // Bind row click
+    sessions.forEach(s => {
+      const row = document.getElementById(`srow-${s.id}`);
+      if (row) row.addEventListener("click", () => toggleDetail(s.id));
+    });
+  }
+
+  function renderSessionRows(s, i) {
+    const done    = !!s.completed_at;
+    const cached  = resultsCache[s.id];
+    const pct     = cached ? cached.percentage : null;
+    const grade   = cached ? cached.grade      : null;
+    const total   = cached ? cached.total_score : null;
+    const maxS    = cached ? cached.max_score   : null;
+    const isOpen  = s.id === openId;
+
+    const pctBar = pct !== null ? `
+      <div class="pct-bar-wrap">
+        <div class="pct-bar"><div class="pct-fill" style="width:${pct}%;background:${pctColor(pct)}"></div></div>
+        <span style="font-weight:700;color:${pctColor(pct)}">${pct}%</span>
+      </div>` : `<span style="color:var(--muted)">—</span>`;
+
+    return `
+<tr id="srow-${s.id}" class="${isOpen ? "open" : ""}">
+  <td style="color:var(--muted);font-size:.78rem;">#${s.id}</td>
+  <td class="td-name">${esc(s.candidate_name)}</td>
+  <td class="td-date">${fmtDate(s.started_at)}</td>
+  <td style="color:var(--sub)">${duration(s.started_at, s.completed_at)}</td>
+  <td class="td-score">${total !== null ? `${total} / ${maxS}` : "—"}</td>
+  <td>${pctBar}</td>
+  <td>${grade ? gradeBadge(grade) : '<span style="color:var(--muted)">—</span>'}</td>
+  <td><span class="status-badge status-${done ? "complete" : "active"}">${done ? "Complete" : "Active"}</span></td>
+  <td><span class="chevron ${isOpen ? "open" : ""}">▼</span></td>
+</tr>
+<tr id="drow-${s.id}" class="detail-row ${isOpen ? "open" : ""}">
+  <td colspan="9" class="detail-cell" id="dcell-${s.id}">
+    <div class="detail-inner" id="detail-${s.id}">
+      ${isOpen && resultsCache[s.id] ? renderDetail(s.id) : '<span style="color:var(--sub)">Loading…</span>'}
+    </div>
+  </td>
+</tr>`;
+  }
+
+  function renderDetail(sid) {
+    const r = resultsCache[sid];
+    if (!r) return '<span style="color:var(--sub)">No results available.</span>';
+
+    const rows = r.responses.map(resp => `
+<tr>
+  <td class="col-q">${esc(resp.question)}</td>
+  <td>${qualBadge(resp.category)} <span style="color:var(--sub);font-size:.75rem;">diff ${resp.difficulty}</span></td>
+  <td class="col-ans">${esc(resp.answer)}</td>
+  <td>${qualBadge(resp.quality)}</td>
+  <td class="col-score">${resp.score_earned} / ${resp.max_points}</td>
+  <td class="col-comment">${resp.comment ? esc(resp.comment) : '—'}</td>
+</tr>`).join("");
+
+    return `
+<div class="detail-header">
+  <div>
+    <div class="detail-title">${esc(r.candidate)}</div>
+    <div class="detail-meta">Started ${fmtDate(r.started)} · Completed ${fmtDate(r.completed)}</div>
+  </div>
+  <div class="score-summary">
+    <div class="score-big">${r.percentage}%</div>
+    <div class="score-sub">${r.total_score} / ${r.max_score} pts · ${gradeBadge(r.grade)}</div>
+  </div>
+</div>
+<table class="resp-table">
+  <thead>
+    <tr>
+      <th>Question</th>
+      <th>Category</th>
+      <th>Answer given</th>
+      <th>Quality</th>
+      <th>Score</th>
+      <th>Interviewer comment</th>
+    </tr>
+  </thead>
+  <tbody>${rows}</tbody>
+</table>
+${renderChatLog(r.chat)}
+`;
+  }
+
+  function renderChatLog(chat) {
+    if (!chat || !chat.length) {
+      return `<div class="chat-log">
+        <div class="chat-log-title">Admin Chat Log <span>0 messages</span></div>
+        <div class="chat-log-empty">No chat messages were recorded for this session.</div>
+      </div>`;
+    }
+    const msgs = chat.map(m => {
+      const time = new Date(m.sent_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return `<div class="chat-log-msg">
+        <span class="chat-log-time">${time}</span>
+        <span class="chat-log-author">${esc(m.author)}</span>
+        <span class="chat-log-text">${esc(m.message)}</span>
+      </div>`;
+    }).join("");
+    return `<div class="chat-log">
+      <div class="chat-log-title">Admin Chat Log <span>${chat.length} message${chat.length !== 1 ? "s" : ""}</span></div>
+      <div class="chat-log-msgs">${msgs}</div>
+    </div>`;
+  }
+
+  // ── Toggle detail ──────────────────────────────────────────────────────────
+  async function toggleDetail(sid) {
+    const wasOpen = openId === sid;
+    openId = wasOpen ? null : sid;
+
+    // If opening and results not cached yet, fetch them
+    if (!wasOpen && !resultsCache[sid]) {
+      const s = sessions.find(s => s.id === sid);
+      if (s && s.completed_at) {
+        resultsCache[sid] = await api(`/api/sessions/${sid}/results`);
+      }
+    }
+
+    // Re-render table (preserve scroll position)
+    const scrollY = window.scrollY;
+    renderTable();
+    window.scrollTo(0, scrollY);
+  }
+
+  // ── Boot ───────────────────────────────────────────────────────────────────
+  load();
+</script>
+</body>
+</html>

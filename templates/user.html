@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interview — Candidate Screen</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #0f1117;
+    color: #e8eaf0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Status screens ── */
+  .screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    gap: 1.2rem;
+    animation: fadeIn .4s ease;
+  }
+  .screen.visible { display: flex; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Waiting ── */
+  #screen-waiting .pulse {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: rgba(99,102,241,.2);
+    border: 2px solid #6366f1;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100% { transform: scale(1);   opacity: .7; }
+    50%      { transform: scale(1.15); opacity: 1;  }
+  }
+  #screen-waiting h1 { font-size: 1.6rem; font-weight: 600; color: #a5b4fc; }
+  #screen-waiting p  { color: #64748b; font-size: .95rem; }
+
+  /* ── Complete ── */
+  #screen-complete .checkmark {
+    font-size: 3.5rem;
+    animation: pop .4s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes pop {
+    from { transform: scale(0); }
+    to   { transform: scale(1); }
+  }
+  #screen-complete h1 { font-size: 1.8rem; font-weight: 700; color: #4ade80; }
+  #screen-complete p  { color: #94a3b8; }
+
+  /* ── Question card ── */
+  #screen-question {
+    width: 100%;
+    max-width: 760px;
+    padding: 2rem;
+  }
+
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2.5rem;
+  }
+  .candidate-tag {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    background: #1e2130;
+    padding: .4rem .9rem;
+    border-radius: 999px;
+    font-size: .85rem;
+    color: #a5b4fc;
+    border: 1px solid #2d3148;
+  }
+  .candidate-tag span { font-size: 1rem; }
+
+  .progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+  }
+  .progress-bar {
+    width: 140px;
+    height: 6px;
+    background: #1e2130;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #818cf8);
+    border-radius: 999px;
+    transition: width .5s ease;
+  }
+  .progress-label { font-size: .8rem; color: #64748b; white-space: nowrap; }
+
+  .card {
+    background: #161925;
+    border: 1px solid #252840;
+    border-radius: 16px;
+    padding: 2.5rem;
+    animation: slideIn .35s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .meta {
+    display: flex;
+    gap: .5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .badge {
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: .25rem .65rem;
+    border-radius: 6px;
+  }
+  .badge-cat  { background: #1e2d48; color: #60a5fa; border: 1px solid #1e3a5f; }
+  .badge-diff { background: #201e36; color: #a78bfa; border: 1px solid #312e6b; }
+
+  .q-text {
+    font-size: 1.35rem;
+    font-weight: 600;
+    line-height: 1.55;
+    color: #f1f5f9;
+  }
+
+  .footer-note {
+    margin-top: 2rem;
+    text-align: center;
+    font-size: .8rem;
+    color: #374151;
+  }
+</style>
+</head>
+<body>
+
+<!-- Waiting -->
+<div id="screen-waiting" class="screen visible">
+  <div class="pulse"></div>
+  <h1>Waiting for interview to start…</h1>
+  <p>The interviewer will begin the session shortly.</p>
+</div>
+
+<!-- Question -->
+<div id="screen-question" class="screen">
+  <div class="top-bar">
+    <div class="candidate-tag">
+      <span>👤</span>
+      <span id="candidate-name">—</span>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+      <span class="progress-label" id="progress-label">0 / 0</span>
+    </div>
+  </div>
+
+  <div class="card" id="question-card">
+    <div class="meta">
+      <span class="badge badge-cat"  id="q-category">—</span>
+      <span class="badge badge-diff" id="q-difficulty">—</span>
+    </div>
+    <p class="q-text" id="q-text">Loading…</p>
+  </div>
+
+  <p class="footer-note">Please answer the question aloud. The interviewer will advance when ready.</p>
+</div>
+
+<!-- Complete -->
+<div id="screen-complete" class="screen">
+  <div class="checkmark">✅</div>
+  <h1>Interview Complete</h1>
+  <p>Thank you, <strong id="complete-name">—</strong>. Your session has been recorded.</p>
+  <p style="color:#64748b;font-size:.85rem;">The interviewer will be in touch.</p>
+</div>
+
+<script>
+  const screens = {
+    waiting:  document.getElementById("screen-waiting"),
+    question: document.getElementById("screen-question"),
+    complete: document.getElementById("screen-complete"),
+  };
+
+  function show(name) {
+    Object.entries(screens).forEach(([k, el]) => {
+      el.classList.toggle("visible", k === name);
+    });
+  }
+
+  let lastQuestionId = null;
+
+  async function poll() {
+    try {
+      const res  = await fetch("/api/state");
+      const data = await res.json();
+
+      if (data.status === "waiting") {
+        show("waiting");
+
+      } else if (data.status === "complete") {
+        document.getElementById("complete-name").textContent = data.candidate || "Candidate";
+        show("complete");
+
+      } else if (data.status === "active") {
+        const q = data.question;
+
+        // Animate card only when question actually changes
+        if (q.id !== lastQuestionId) {
+          lastQuestionId = q.id;
+
+          document.getElementById("candidate-name").textContent = data.candidate;
+
+          const pct  = Math.round((data.q_number / data.q_total) * 100);
+          document.getElementById("progress-fill").style.width  = pct + "%";
+          document.getElementById("progress-label").textContent = `${data.q_number} / ${data.q_total}`;
+
+          const diffLabels = ["", "Basic", "Easy", "Moderate", "Hard", "Expert"];
+          document.getElementById("q-category").textContent  = q.category;
+          document.getElementById("q-difficulty").textContent = diffLabels[q.difficulty] || `Level ${q.difficulty}`;
+          document.getElementById("q-text").textContent       = q.text;
+
+          // Re-trigger the slide-in animation
+          const card = document.getElementById("question-card");
+          card.style.animation = "none";
+          card.offsetHeight;            // reflow
+          card.style.animation = "";
+        }
+
+        show("question");
+      }
+    } catch (e) {
+      // network error — stay on current screen
+    }
+  }
+
+  poll();
+  setInterval(poll, 2000);
+</script>
+</body>
+</html>

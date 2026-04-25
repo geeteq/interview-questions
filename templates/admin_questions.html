@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Interview — Questions</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:        #0f1117;
+    --surface:   #161925;
+    --border:    #252840;
+    --muted:     #374151;
+    --text:      #e8eaf0;
+    --sub:       #94a3b8;
+    --accent:    #6366f1;
+    --accent-lt: #818cf8;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── Nav ── */
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: .75rem 2rem; display: flex; align-items: center; gap: 1.5rem; }
+  .header h1 { font-size: 1.05rem; font-weight: 700; color: var(--accent-lt); white-space: nowrap; }
+  .nav-tabs { display: flex; gap: .25rem; }
+  .nav-tab { font-size: .82rem; font-weight: 600; padding: .35rem .85rem; border-radius: 7px; text-decoration: none; color: var(--sub); transition: all .15s; }
+  .nav-tab:hover  { background: #1e2130; color: var(--text); }
+  .nav-tab.active { background: #1e2130; color: var(--accent-lt); }
+
+  /* ── Layout ── */
+  main { max-width: 900px; margin: 0 auto; padding: 2rem; }
+  .page-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+  .page-hd h2 { font-size: 1.25rem; font-weight: 700; }
+  .page-hd p  { font-size: .82rem; color: var(--sub); margin-top: .2rem; }
+
+  /* ── Category filter bar ── */
+  .cat-bar { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1.25rem; align-items: center; }
+  .cat-btn {
+    font-size: .78rem; font-weight: 600; padding: .3rem .8rem; border-radius: 999px;
+    border: 1px solid var(--border); background: #11141d; color: var(--sub);
+    cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .cat-btn:hover { border-color: #3d4166; color: var(--text); }
+  .cat-btn.active { border-color: var(--accent); background: #1e2238; color: var(--accent-lt); }
+  .cat-sep { width: 1px; height: 18px; background: var(--border); margin: 0 .2rem; }
+
+  /* ── Buttons ── */
+  .btn { display: inline-flex; align-items: center; gap: .35rem; padding: .5rem 1rem; border: none; border-radius: 8px; font-size: .85rem; font-weight: 600; cursor: pointer; transition: all .15s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #4f46e5; }
+  .btn-ghost   { background: #1e2130; color: var(--sub); border: 1px solid var(--border); }
+  .btn-ghost:hover { color: var(--text); border-color: #3d4166; }
+  .btn-danger  { background: #2a1010; color: #f87171; border: 1px solid #3d1010; }
+  .btn-danger:hover { background: #3a1414; }
+  .btn-sm { padding: .3rem .65rem; font-size: .78rem; border-radius: 6px; }
+  .btn-icon { padding: .28rem .5rem; font-size: .8rem; background: #1e2130; color: var(--sub); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; transition: all .15s; }
+  .btn-icon:hover { color: var(--text); border-color: #3d4166; }
+  .btn-icon:disabled { opacity: .3; cursor: not-allowed; }
+
+  /* ── Add-question panel ── */
+  .add-panel {
+    background: var(--surface); border: 1px solid var(--accent); border-radius: 12px;
+    padding: 1.5rem; margin-bottom: 1.5rem;
+    animation: slideDown .2s ease;
+  }
+  @keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+  .add-panel h3 { font-size: .9rem; font-weight: 700; color: var(--accent-lt); margin-bottom: 1rem; }
+  .form-field { margin-bottom: .85rem; }
+  .form-field label { display: block; font-size: .75rem; font-weight: 600; color: var(--sub); margin-bottom: .3rem; letter-spacing: .05em; text-transform: uppercase; }
+  .form-field textarea,
+  .form-field input,
+  .form-field select {
+    width: 100%; padding: .6rem .85rem;
+    background: #1a1f2e; border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: .9rem; outline: none; font-family: inherit;
+    transition: border-color .2s;
+  }
+  .form-field textarea { min-height: 80px; resize: vertical; line-height: 1.5; }
+  .form-field input:focus, .form-field textarea:focus, .form-field select:focus { border-color: var(--accent); }
+  .form-field select option { background: #1a1f2e; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .75rem; }
+  .form-actions { display: flex; gap: .5rem; margin-top: 1rem; }
+
+  /* ── Question cards ── */
+  .q-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: .75rem; overflow: hidden; transition: border-color .2s; }
+  .q-card:hover { border-color: #3d4166; }
+  .q-card.expanded { border-color: #3d4166; }
+
+  .q-card-header { display: flex; align-items: center; gap: .75rem; padding: 1rem 1.1rem; cursor: pointer; }
+  .order-num { font-size: .75rem; font-weight: 800; color: var(--accent-lt); background: #1e2238; border: 1px solid #2d3058; border-radius: 6px; padding: .2rem .5rem; white-space: nowrap; min-width: 2rem; text-align: center; }
+  .reorder-btns { display: flex; flex-direction: column; gap: 2px; }
+  .q-main { flex: 1; min-width: 0; }
+  .q-text-preview { font-size: .9rem; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: .35rem; }
+  .q-badges { display: flex; gap: .35rem; flex-wrap: wrap; }
+  .badge { font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: .18rem .55rem; border-radius: 5px; }
+  .badge-cat    { background: #1e2d48; color: #60a5fa; border: 1px solid #1e3a5f; }
+  .badge-diff   { background: #201e36; color: #a78bfa; border: 1px solid #312e6b; }
+  .badge-weight { background: #1c2a1c; color: #4ade80; border: 1px solid #1a3a1a; }
+  .badge-ans    { background: #1e2130; color: var(--sub); border: 1px solid var(--border); }
+  .q-actions { display: flex; gap: .4rem; align-items: center; flex-shrink: 0; }
+  .chevron { font-size: .7rem; color: var(--muted); transition: transform .2s; }
+  .q-card.expanded .chevron { transform: rotate(180deg); }
+
+  /* ── Expanded body ── */
+  .q-body { border-top: 1px solid var(--border); padding: 1.25rem 1.1rem; display: none; }
+  .q-card.expanded .q-body { display: block; }
+
+  /* ── Inline edit form ── */
+  .edit-form { background: #11141d; border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem; margin-bottom: 1.25rem; }
+  .edit-form h4 { font-size: .78rem; font-weight: 700; color: var(--sub); margin-bottom: .85rem; letter-spacing: .05em; text-transform: uppercase; }
+
+  /* ── Answers section ── */
+  .answers-hd { font-size: .72rem; font-weight: 700; color: var(--sub); letter-spacing: .06em; text-transform: uppercase; margin-bottom: .6rem; display: flex; justify-content: space-between; align-items: center; }
+  .answer-rows { display: flex; flex-direction: column; gap: .4rem; margin-bottom: .75rem; }
+  .answer-row { display: flex; align-items: center; gap: .6rem; background: #11141d; border: 1px solid var(--border); border-radius: 8px; padding: .6rem .85rem; }
+  .answer-row.editing { border-color: var(--accent); }
+  .a-quality { flex-shrink: 0; }
+  .a-text { flex: 1; font-size: .85rem; color: var(--text); line-height: 1.4; }
+  .a-pts   { font-size: .75rem; color: var(--sub); white-space: nowrap; flex-shrink: 0; }
+  .a-actions { display: flex; gap: .3rem; flex-shrink: 0; }
+  .answer-edit-inline { display: flex; gap: .5rem; align-items: flex-start; flex-wrap: wrap; width: 100%; }
+  .answer-edit-inline input { flex: 1; min-width: 180px; padding: .4rem .65rem; background: #1a1f2e; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: .85rem; outline: none; }
+  .answer-edit-inline input:focus { border-color: var(--accent); }
+  .answer-edit-inline select { padding: .4rem .65rem; background: #1a1f2e; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: .85rem; outline: none; cursor: pointer; }
+
+  /* ── Add answer form ── */
+  .add-answer-form { display: flex; gap: .5rem; align-items: flex-start; flex-wrap: wrap; padding: .75rem; background: #0d1018; border: 1px dashed var(--border); border-radius: 8px; }
+  .add-answer-form input { flex: 1; min-width: 200px; padding: .45rem .75rem; background: #1a1f2e; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: .85rem; outline: none; }
+  .add-answer-form input:focus { border-color: var(--accent); }
+  .add-answer-form select { padding: .45rem .65rem; background: #1a1f2e; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: .85rem; outline: none; cursor: pointer; }
+
+  /* ── Quality colours ── */
+  .q-Excellent  { background: #14291a; color: #4ade80; border: 1px solid #1a4024; }
+  .q-Good       { background: #1a2535; color: #60a5fa; border: 1px solid #1e3050; }
+  .q-Acceptable { background: #2a2410; color: #fbbf24; border: 1px solid #3d350f; }
+  .q-Poor       { background: #2a1a10; color: #f97316; border: 1px solid #3d240f; }
+  .q-Dangerous  { background: #2a1010; color: #f87171; border: 1px solid #3d1010; }
+
+  /* ── Empty state ── */
+  .empty { text-align: center; padding: 3rem; color: var(--sub); }
+  .empty p { margin-top: .5rem; font-size: .85rem; }
+
+  /* ── Toast ── */
+  #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #1e2a3a; border: 1px solid #2d4060; border-radius: 10px; padding: .7rem 1rem; font-size: .85rem; color: #60a5fa; opacity: 0; transform: translateY(8px); transition: all .25s; pointer-events: none; z-index: 999; }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.err  { background: #2a1010; border-color: #3d1010; color: #f87171; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🎙 Interview</h1>
+  <nav class="nav-tabs">
+    <a href="/admin"           class="nav-tab">Interview</a>
+    <a href="/admin/questions" class="nav-tab active">Questions</a>
+    <a href="/admin/sessions"  class="nav-tab">Sessions</a>
+  </nav>
+</div>
+
+<main>
+  <div class="page-hd">
+    <div>
+      <h2>Question Bank</h2>
+      <p id="q-count">Loading…</p>
+    </div>
+    <button class="btn btn-primary" id="btn-add">+ Add Question</button>
+  </div>
+
+  <!-- Add question panel -->
+  <div id="add-panel" class="add-panel" style="display:none">
+    <h3>New Question</h3>
+    <div class="form-field">
+      <label>Question text</label>
+      <textarea id="nq-text" placeholder="Enter the question…"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Category</label>
+        <input id="nq-cat" placeholder="e.g. Safety, Ethics…" />
+      </div>
+      <div class="form-field">
+        <label>Difficulty</label>
+        <select id="nq-diff">
+          <option value="1">1 — Basic</option>
+          <option value="2">2 — Easy</option>
+          <option value="3" selected>3 — Moderate</option>
+          <option value="4">4 — Hard</option>
+          <option value="5">5 — Expert</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Weight (score multiplier)</label>
+        <input id="nq-weight" type="number" step="0.5" min="0.5" value="1.5" />
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" id="btn-save-new">Save Question</button>
+      <button class="btn btn-ghost"   id="btn-cancel-new">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Category filter bar -->
+  <div class="cat-bar" id="cat-bar">
+    <button class="cat-btn active" data-cat="All">All</button>
+    <div class="cat-sep"></div>
+    <!-- populated by JS -->
+  </div>
+
+  <!-- Question list -->
+  <div id="q-list"></div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+let questions    = [];
+let answersCache = {};    // { qid: [answer, …] }
+let expandedId   = null;
+let activeCategory = "All";
+
+const QUALITY_SCORES = { Excellent: 4, Good: 3, Acceptable: 2, Poor: 1, Dangerous: 0 };
+const DIFF_LABELS    = ["", "Basic", "Easy", "Moderate", "Hard", "Expert"];
+
+// ── Toast ──────────────────────────────────────────────────────────────────────
+function toast(msg, isErr = false) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "show" + (isErr ? " err" : "");
+  setTimeout(() => t.className = "", 3000);
+}
+
+// ── API helpers ────────────────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const r = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || "Request failed");
+  return d;
+}
+
+function esc(s) {
+  return String(s || "")
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function qBadge(quality) {
+  const cls = "badge q-" + quality.replace(/[^a-zA-Z]/g,"");
+  return `<span class="${cls}">${esc(quality)}</span>`;
+}
+
+// ── Load questions ─────────────────────────────────────────────────────────────
+async function load() {
+  questions = await api("/api/questions");
+  document.getElementById("q-count").textContent =
+    `${questions.length} question${questions.length !== 1 ? "s" : ""} · max ${maxScore()} pts total`;
+  rebuildCategoryBar();
+  render();
+}
+
+function maxScore() {
+  return questions.reduce((s, q) => s + q.weight * 4, 0).toFixed(1);
+}
+
+// ── Category filter bar ────────────────────────────────────────────────────────
+function rebuildCategoryBar() {
+  const cats   = ["All", ...new Set(questions.map(q => q.category))].filter(Boolean);
+  const bar    = document.getElementById("cat-bar");
+  bar.innerHTML = cats.map((c, i) => {
+    const sep = (i === 1) ? '<div class="cat-sep"></div>' : "";
+    return `${sep}<button class="cat-btn${c === activeCategory ? " active" : ""}" data-cat="${esc(c)}">${esc(c)}</button>`;
+  }).join("");
+  bar.querySelectorAll(".cat-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      activeCategory = btn.dataset.cat;
+      rebuildCategoryBar();
+      render();
+    });
+  });
+}
+
+// ── Render question list ───────────────────────────────────────────────────────
+function render() {
+  const list    = document.getElementById("q-list");
+  const visible = activeCategory === "All"
+    ? questions
+    : questions.filter(q => q.category === activeCategory);
+
+  if (!visible.length) {
+    list.innerHTML = `<div class="empty"><strong>No questions in this category.</strong><p>Add one with the "+ Add Question" button above.</p></div>`;
+    return;
+  }
+  // Pass global index (for reorder arrows) and local filtered list
+  list.innerHTML = visible.map((q, i) => renderCard(q, i, visible)).join("");
+  bindCardEvents();
+}
+
+function renderCard(q, i, visibleList) {
+  const list  = visibleList || questions;
+  const isExp = q.id === expandedId;
+  return `
+<div class="q-card${isExp ? " expanded" : ""}" data-qid="${q.id}">
+  <div class="q-card-header" data-toggle="${q.id}">
+    <span class="order-num">${String(i+1).padStart(2,"0")}</span>
+    <div class="reorder-btns">
+      <button class="btn-icon" data-move-up="${q.id}"   ${i === 0 ? "disabled" : ""} title="Move up">▲</button>
+      <button class="btn-icon" data-move-down="${q.id}" ${i === list.length-1 ? "disabled" : ""} title="Move down">▼</button>
+    </div>
+    <div class="q-main">
+      <div class="q-text-preview">${esc(q.text)}</div>
+      <div class="q-badges">
+        <span class="badge badge-cat">${esc(q.category)}</span>
+        <span class="badge badge-diff">${DIFF_LABELS[q.difficulty] || q.difficulty}</span>
+        <span class="badge badge-weight">×${q.weight} weight · max ${(q.weight*4).toFixed(1)} pts</span>
+        <span class="badge badge-ans">${q.answer_count} answer${q.answer_count !== 1 ? "s" : ""}</span>
+      </div>
+    </div>
+    <div class="q-actions" onclick="event.stopPropagation()">
+      <button class="btn btn-ghost btn-sm" data-edit-q="${q.id}">Edit</button>
+      <button class="btn btn-danger btn-sm" data-del-q="${q.id}">Delete</button>
+    </div>
+    <span class="chevron">▼</span>
+  </div>
+
+  <div class="q-body">
+    <!-- Inline edit form (hidden by default) -->
+    <div id="edit-form-${q.id}" class="edit-form" style="display:none">
+      <h4>Edit Question</h4>
+      <div class="form-field">
+        <label>Question text</label>
+        <textarea id="eq-text-${q.id}">${esc(q.text)}</textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label>Category</label>
+          <input id="eq-cat-${q.id}" value="${esc(q.category)}" />
+        </div>
+        <div class="form-field">
+          <label>Difficulty</label>
+          <select id="eq-diff-${q.id}">
+            ${[1,2,3,4,5].map(d => `<option value="${d}"${d===q.difficulty?" selected":""}>${d} — ${DIFF_LABELS[d]}</option>`).join("")}
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Weight</label>
+          <input id="eq-weight-${q.id}" type="number" step="0.5" min="0.5" value="${q.weight}" />
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary btn-sm" data-save-q="${q.id}">Save Changes</button>
+        <button class="btn btn-ghost   btn-sm" data-cancel-edit="${q.id}">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Answers section -->
+    <div id="answers-${q.id}">
+      <div class="answers-hd">
+        <span>Possible Answers</span>
+      </div>
+      <div id="answer-rows-${q.id}" class="answer-rows">
+        <span style="color:var(--sub);font-size:.82rem;">Loading answers…</span>
+      </div>
+      <!-- Add answer form -->
+      <div class="add-answer-form">
+        <input id="na-text-${q.id}" placeholder="Answer text…" style="flex:1;min-width:200px;" />
+        <select id="na-qual-${q.id}" onchange="autoScore(${q.id})">
+          <option value="Excellent">Excellent</option>
+          <option value="Good">Good</option>
+          <option value="Acceptable" selected>Acceptable</option>
+          <option value="Poor">Poor</option>
+          <option value="Dangerous">Dangerous</option>
+        </select>
+        <button class="btn btn-primary btn-sm" data-add-ans="${q.id}">+ Add Answer</button>
+      </div>
+    </div>
+  </div>
+</div>`;
+}
+
+// ── Bind events ────────────────────────────────────────────────────────────────
+function bindCardEvents() {
+  // Expand/collapse
+  document.querySelectorAll("[data-toggle]").forEach(el => {
+    el.addEventListener("click", () => toggleExpand(+el.dataset.toggle));
+  });
+  // Reorder
+  document.querySelectorAll("[data-move-up]").forEach(el => {
+    el.addEventListener("click", e => { e.stopPropagation(); moveQuestion(+el.dataset.moveUp, -1); });
+  });
+  document.querySelectorAll("[data-move-down]").forEach(el => {
+    el.addEventListener("click", e => { e.stopPropagation(); moveQuestion(+el.dataset.moveDown, 1); });
+  });
+  // Edit question
+  document.querySelectorAll("[data-edit-q]").forEach(el => {
+    el.addEventListener("click", e => { e.stopPropagation(); showEditForm(+el.dataset.editQ); });
+  });
+  document.querySelectorAll("[data-cancel-edit]").forEach(el => {
+    el.addEventListener("click", () => hideEditForm(+el.dataset.cancelEdit));
+  });
+  document.querySelectorAll("[data-save-q]").forEach(el => {
+    el.addEventListener("click", () => saveQuestion(+el.dataset.saveQ));
+  });
+  // Delete question
+  document.querySelectorAll("[data-del-q]").forEach(el => {
+    el.addEventListener("click", e => { e.stopPropagation(); deleteQuestion(+el.dataset.delQ); });
+  });
+  // Add answer
+  document.querySelectorAll("[data-add-ans]").forEach(el => {
+    el.addEventListener("click", () => addAnswer(+el.dataset.addAns));
+  });
+}
+
+// ── Expand / collapse ──────────────────────────────────────────────────────────
+async function toggleExpand(qid) {
+  if (expandedId === qid) {
+    expandedId = null;
+    render();
+    return;
+  }
+  expandedId = qid;
+  render();
+  await loadAnswers(qid);
+}
+
+// ── Load + render answers ──────────────────────────────────────────────────────
+async function loadAnswers(qid) {
+  answersCache[qid] = await api(`/api/questions/${qid}/answers`);
+  renderAnswers(qid);
+}
+
+function renderAnswers(qid) {
+  const container = document.getElementById(`answer-rows-${qid}`);
+  if (!container) return;
+  const answers = answersCache[qid] || [];
+  if (!answers.length) {
+    container.innerHTML = `<span style="color:var(--sub);font-size:.82rem;">No answers yet — add one below.</span>`;
+    return;
+  }
+  container.innerHTML = answers.map(a => renderAnswerRow(a, qid)).join("");
+  bindAnswerEvents(qid);
+}
+
+function renderAnswerRow(a, qid) {
+  return `
+<div class="answer-row" id="arow-${a.id}">
+  <span class="a-quality badge ${("q-"+a.quality_label.replace(/[^a-zA-Z]/g,""))}">${esc(a.quality_label)}</span>
+  <span class="a-text">${esc(a.text)}</span>
+  <span class="a-pts">${a.score_value * (questions.find(q=>q.id===qid)?.weight||1)} pts</span>
+  <div class="a-actions">
+    <button class="btn-icon btn-sm" data-edit-a="${a.id}" data-qid="${qid}">✏</button>
+    <button class="btn-icon btn-sm" data-del-a="${a.id}"  data-qid="${qid}" style="color:#f87171">✕</button>
+  </div>
+</div>
+<div id="aedit-${a.id}" style="display:none;padding:.5rem 0;">
+  <div class="answer-edit-inline">
+    <input id="ae-text-${a.id}" value="${esc(a.text)}" placeholder="Answer text…" />
+    <select id="ae-qual-${a.id}" onchange="autoScoreEdit(${a.id})">
+      ${["Excellent","Good","Acceptable","Poor","Dangerous"].map(q =>
+        `<option value="${q}"${q===a.quality_label?" selected":""}>${q}</option>`).join("")}
+    </select>
+    <button class="btn btn-primary btn-sm" data-save-a="${a.id}" data-qid="${qid}">Save</button>
+    <button class="btn btn-ghost   btn-sm" data-cancel-a="${a.id}">Cancel</button>
+  </div>
+</div>`;
+}
+
+function bindAnswerEvents(qid) {
+  document.querySelectorAll(`[data-edit-a]`).forEach(el => {
+    el.addEventListener("click", () => showAnswerEdit(+el.dataset.editA));
+  });
+  document.querySelectorAll(`[data-cancel-a]`).forEach(el => {
+    el.addEventListener("click", () => hideAnswerEdit(+el.dataset.cancelA));
+  });
+  document.querySelectorAll(`[data-save-a]`).forEach(el => {
+    el.addEventListener("click", () => saveAnswer(+el.dataset.saveA, +el.dataset.qid));
+  });
+  document.querySelectorAll(`[data-del-a]`).forEach(el => {
+    el.addEventListener("click", () => deleteAnswer(+el.dataset.delA, +el.dataset.qid));
+  });
+}
+
+function showAnswerEdit(aid) {
+  document.getElementById(`arow-${aid}`)?.classList.add("editing");
+  const editEl = document.getElementById(`aedit-${aid}`);
+  if (editEl) editEl.style.display = "block";
+}
+function hideAnswerEdit(aid) {
+  document.getElementById(`arow-${aid}`)?.classList.remove("editing");
+  const editEl = document.getElementById(`aedit-${aid}`);
+  if (editEl) editEl.style.display = "none";
+}
+
+// ── Question actions ───────────────────────────────────────────────────────────
+function showEditForm(qid) {
+  expandedId = qid;
+  render();
+  loadAnswers(qid);
+  const f = document.getElementById(`edit-form-${qid}`);
+  if (f) f.style.display = "block";
+}
+function hideEditForm(qid) {
+  const f = document.getElementById(`edit-form-${qid}`);
+  if (f) f.style.display = "none";
+}
+
+async function saveQuestion(qid) {
+  try {
+    await api(`/api/questions/${qid}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        text:       document.getElementById(`eq-text-${qid}`).value.trim(),
+        category:   document.getElementById(`eq-cat-${qid}`).value.trim(),
+        difficulty: document.getElementById(`eq-diff-${qid}`).value,
+        weight:     document.getElementById(`eq-weight-${qid}`).value,
+      }),
+    });
+    toast("Question saved.");
+    await load();
+    expandedId = qid;
+    render();
+    loadAnswers(qid);
+  } catch(e) { toast(e.message, true); }
+}
+
+async function deleteQuestion(qid) {
+  if (!confirm("Delete this question? This cannot be undone.")) return;
+  try {
+    await api(`/api/questions/${qid}`, { method: "DELETE" });
+    if (expandedId === qid) expandedId = null;
+    toast("Question deleted.");
+    await load();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function moveQuestion(qid, dir) {
+  // Operate on the currently-visible (filtered) list so ↑↓ makes intuitive sense
+  const visible  = activeCategory === "All" ? questions : questions.filter(q => q.category === activeCategory);
+  const idx      = visible.findIndex(q => q.id === qid);
+  const swapIdx  = idx + dir;
+  if (swapIdx < 0 || swapIdx >= visible.length) return;
+
+  // Swap inside the visible slice, rebuild order_index for the full list
+  const swapId   = visible[swapIdx].id;
+  const fullCopy = [...questions];
+  const a = fullCopy.findIndex(q => q.id === qid);
+  const b = fullCopy.findIndex(q => q.id === swapId);
+  [fullCopy[a], fullCopy[b]] = [fullCopy[b], fullCopy[a]];
+
+  const payload = fullCopy.map((q, i) => ({ id: q.id, order_index: i + 1 }));
+  await api("/api/questions/reorder", { method: "POST", body: JSON.stringify(payload) });
+  await load();
+}
+
+// ── Answer actions ─────────────────────────────────────────────────────────────
+async function addAnswer(qid) {
+  const text = document.getElementById(`na-text-${qid}`).value.trim();
+  const qual = document.getElementById(`na-qual-${qid}`).value;
+  if (!text) { toast("Enter answer text first.", true); return; }
+  try {
+    await api(`/api/questions/${qid}/answers`, {
+      method: "POST",
+      body: JSON.stringify({ text, quality_label: qual, score_value: QUALITY_SCORES[qual] }),
+    });
+    document.getElementById(`na-text-${qid}`).value = "";
+    toast("Answer added.");
+    await loadAnswers(qid);
+    // Refresh answer_count badge without full reload
+    questions = await api("/api/questions");
+    document.getElementById("q-count").textContent =
+      `${questions.length} question${questions.length !== 1 ? "s" : ""} · max ${maxScore()} pts total`;
+  } catch(e) { toast(e.message, true); }
+}
+
+async function saveAnswer(aid, qid) {
+  const text = document.getElementById(`ae-text-${aid}`)?.value.trim();
+  const qual = document.getElementById(`ae-qual-${aid}`)?.value;
+  if (!text) { toast("Answer text cannot be empty.", true); return; }
+  try {
+    await api(`/api/answers/${aid}`, {
+      method: "PUT",
+      body: JSON.stringify({ text, quality_label: qual, score_value: QUALITY_SCORES[qual] }),
+    });
+    toast("Answer updated.");
+    await loadAnswers(qid);
+  } catch(e) { toast(e.message, true); }
+}
+
+async function deleteAnswer(aid, qid) {
+  if (!confirm("Delete this answer?")) return;
+  try {
+    await api(`/api/answers/${aid}`, { method: "DELETE" });
+    toast("Answer deleted.");
+    await loadAnswers(qid);
+  } catch(e) { toast(e.message, true); }
+}
+
+// ── Auto-score quality → score ─────────────────────────────────────────────────
+function autoScore(qid) {
+  // Not needed for now — score is derived from quality at save time
+}
+function autoScoreEdit(aid) {
+  // Not needed — handled at save time
+}
+
+// ── Add-question panel ─────────────────────────────────────────────────────────
+document.getElementById("btn-add").addEventListener("click", () => {
+  const p = document.getElementById("add-panel");
+  p.style.display = p.style.display === "none" ? "block" : "none";
+});
+document.getElementById("btn-cancel-new").addEventListener("click", () => {
+  document.getElementById("add-panel").style.display = "none";
+});
+document.getElementById("btn-save-new").addEventListener("click", async () => {
+  const text   = document.getElementById("nq-text").value.trim();
+  const cat    = document.getElementById("nq-cat").value.trim();
+  const diff   = document.getElementById("nq-diff").value;
+  const weight = document.getElementById("nq-weight").value;
+  if (!text || !cat) { toast("Question text and category are required.", true); return; }
+  try {
+    const { id } = await api("/api/questions", {
+      method: "POST",
+      body: JSON.stringify({ text, category: cat, difficulty: diff, weight }),
+    });
+    document.getElementById("nq-text").value = "";
+    document.getElementById("nq-cat").value  = "";
+    document.getElementById("add-panel").style.display = "none";
+    toast("Question created. Add answers by expanding it below.");
+    expandedId = id;
+    await load();
+    loadAnswers(id);
+  } catch(e) { toast(e.message, true); }
+});
+
+// ── Boot ───────────────────────────────────────────────────────────────────────
+load();
+</script>
+</body>
+</html>
