@@ -33,6 +33,9 @@ as_interview() {
   fi
 }
 
+# Resolve the directory that contains this script — source of truth for the code
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # ── Fixed identity ─────────────────────────────────────────────────────────────
 APP_USER="interview"
 APP_HOME="/home/interview"
@@ -73,9 +76,6 @@ APP_SUBPATH="${APP_SUBPATH%/}"
 read -rp "  Gunicorn port [5001]: " APP_PORT
 APP_PORT="${APP_PORT:-5001}"
 
-read -rp "  Git repo URL [https://github.com/geeteq/interview-questions.git]: " REPO_URL
-REPO_URL="${REPO_URL:-https://github.com/geeteq/interview-questions.git}"
-
 read -rp "  HTTPS proxy (leave blank if not needed): " PROXY_INPUT
 if [[ -n "$PROXY_INPUT" ]]; then
   export https_proxy="$PROXY_INPUT"
@@ -98,7 +98,7 @@ echo "    Logs       : $LOG_DIR"
 echo "    Port       : $APP_PORT"
 echo "    Sub-path   : $APP_SUBPATH"
 echo "    Access URL : http://SERVER${APP_SUBPATH}/"
-echo "    Repo       : $REPO_URL"
+echo "    Source dir : $SCRIPT_DIR"
 echo "    HTTPS proxy: $PROXY_DISPLAY"
 echo ""
 read -rp "  Proceed? (y/n) [y]: " CONFIRM
@@ -109,7 +109,7 @@ header "1/7 — System packages"
 
 pkg_installed() { rpm -q "$1" &>/dev/null; }
 
-PACKAGES=(python3 httpd git)
+PACKAGES=(python3 httpd rsync)
 for pkg in "${PACKAGES[@]}"; do
   if pkg_installed "$pkg"; then
     info "$pkg already installed"
@@ -155,25 +155,28 @@ chown "$APP_USER:$APP_USER" "$APP_HOME"
 chmod 750 "$APP_HOME"
 ok "Home: $APP_HOME"
 
-# Persist proxy in git config for the interview user so future pulls work too
-if [[ -n "${HTTPS_PROXY:-}" ]]; then
-  as_interview git config --global http.proxy  "$HTTPS_PROXY"
-  as_interview git config --global https.proxy "$HTTPS_PROXY"
-  ok "Git proxy set for $APP_USER (${HTTPS_PROXY})"
-fi
 
 # ── 3 — Code ──────────────────────────────────────────────────────────────────
 header "3/7 — App code"
 
-if [[ -d "$APP_DIR/.git" ]]; then
-  info "Repo already present — pulling latest…"
-  as_interview git -C "$APP_DIR" pull --ff-only
-  ok "Code updated"
-else
-  info "Cloning $REPO_URL → $APP_DIR"
-  as_interview git clone "$REPO_URL" "$APP_DIR"
-  ok "Code cloned"
-fi
+[[ "$SCRIPT_DIR" == "$APP_DIR" ]] && die "Script is already inside $APP_DIR — run it from outside the target directory."
+
+info "Syncing $SCRIPT_DIR → $APP_DIR"
+mkdir -p "$APP_DIR"
+
+rsync -a --delete \
+  --exclude='.git/' \
+  --exclude='venv/' \
+  --exclude='__pycache__/' \
+  --exclude='*.pyc' \
+  --exclude='*.pyo' \
+  --exclude='*.db' \
+  --exclude='*.db-shm' \
+  --exclude='*.db-wal' \
+  "$SCRIPT_DIR/" "$APP_DIR/"
+
+chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+ok "Code synced to $APP_DIR"
 
 # ── 4 — Python environment ─────────────────────────────────────────────────────
 header "4/7 — Python environment"
@@ -321,13 +324,12 @@ echo "    Status   : systemctl status interview-questions"
 echo "    Logs     : journalctl -u interview-questions -f"
 echo "    App logs : tail -f ${LOG_DIR}/error.log"
 echo "    Restart  : systemctl restart interview-questions"
-echo "    Update   : sudo -u ${APP_USER} git -C ${APP_DIR} pull && systemctl restart interview-questions"
+echo "    Update   : sudo bash ${APP_DIR}/deploy.sh"
 echo "    Shell    : sudo -u ${APP_USER} -s"
 if [[ -n "${HTTPS_PROXY:-}" ]]; then
 echo ""
 echo -e "${BOLD}  Proxy${RESET}"
-echo "    Used for : dnf, git, pip during this deploy"
-echo "    Git      : persisted in ~${APP_USER}/.gitconfig"
-echo "    To clear : sudo -u ${APP_USER} git config --global --unset http.proxy"
+echo "    Used for : dnf, pip during this deploy"
+echo "    Value    : ${HTTPS_PROXY}"
 fi
 echo ""
