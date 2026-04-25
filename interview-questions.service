@@ -1,0 +1,21 @@
+[Unit]
+Description=Interview Questions — Gunicorn
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/interview-questions
+Environment="PATH=/var/www/interview-questions/venv/bin"
+ExecStartPre=/var/www/interview-questions/venv/bin/python init_db.py
+ExecStart=/var/www/interview-questions/venv/bin/gunicorn \
+    --workers 3 \
+    --bind 127.0.0.1:5001 \
+    --access-logfile /var/log/interview-questions/access.log \
+    --error-logfile  /var/log/interview-questions/error.log \
+    app:app
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

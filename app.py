@@ -1,9 +1,11 @@
 from flask import Flask, render_template, request, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 import sqlite3
 from datetime import datetime
 from init_db import init
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 DB = "interview.db"
 
 
