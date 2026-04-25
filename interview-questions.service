@@ -10,7 +10,7 @@ Environment="PATH=/var/www/interview-questions/venv/bin"
 ExecStartPre=/var/www/interview-questions/venv/bin/python init_db.py
 ExecStart=/var/www/interview-questions/venv/bin/gunicorn \
     --workers 3 \
-    --bind 127.0.0.1:5001 \
+    --bind 127.0.0.1:5002 \
     --access-logfile /var/log/interview-questions/access.log \
     --error-logfile  /var/log/interview-questions/error.log \
     app:app

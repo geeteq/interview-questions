@@ -73,8 +73,8 @@ APP_SUBPATH="${APP_SUBPATH:-/interview}"
 APP_SUBPATH="/${APP_SUBPATH#/}"          # ensure leading slash, strip trailing
 APP_SUBPATH="${APP_SUBPATH%/}"
 
-read -rp "  Gunicorn port [5001]: " APP_PORT
-APP_PORT="${APP_PORT:-5001}"
+read -rp "  Gunicorn port [5002]: " APP_PORT
+APP_PORT="${APP_PORT:-5002}"
 
 read -rp "  HTTPS proxy (leave blank if not needed): " PROXY_INPUT
 if [[ -n "$PROXY_INPUT" ]]; then
