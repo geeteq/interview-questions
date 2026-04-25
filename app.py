@@ -1,12 +1,20 @@
 from flask import Flask, render_template, request, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
-import sqlite3
+import sqlite3, os
 from datetime import datetime
 from init_db import init
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 DB = "interview.db"
+
+# Sub-path support: set INTERVIEW_BASE_PATH=/interview in the environment
+# when running behind a reverse proxy at a non-root path.
+BASE_PATH = os.environ.get("INTERVIEW_BASE_PATH", "").rstrip("/")
+
+@app.context_processor
+def _inject_base():
+    return {"base_path": BASE_PATH}
 
 
 def db():

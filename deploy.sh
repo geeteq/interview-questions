@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# deploy.sh — full server setup for interview-questions
-# Runs everything under the dedicated 'interview' system user.
+# deploy.sh — RHEL/CentOS server setup for interview-questions
+# App runs under the 'interview' user at /home/interview
+# Apache reverse-proxies http://SERVER/interview/ → Gunicorn on 127.0.0.1:PORT
+# SSL is handled upstream — this script configures HTTP only on the internal endpoint.
+#
 # Usage: sudo bash deploy.sh
 set -euo pipefail
 
@@ -14,10 +17,9 @@ warn()   { echo -e "${YELLOW}  ⚠ ${1}${RESET}"; }
 die()    { echo -e "${RED}  ✘ ${1}${RESET}"; exit 1; }
 header() { echo -e "\n${BOLD}${CYAN}▸ ${1}${RESET}"; }
 
-# run a command as the interview user
 as_interview() { sudo -u "$APP_USER" "$@"; }
 
-# ── Hardcoded identity — everything lives under /home/interview ────────────────
+# ── Fixed identity ─────────────────────────────────────────────────────────────
 APP_USER="interview"
 APP_HOME="/home/interview"
 APP_DIR="$APP_HOME/interview-questions"
@@ -28,10 +30,20 @@ DB="$APP_DIR/interview.db"
 # ── Root check ─────────────────────────────────────────────────────────────────
 [[ $EUID -ne 0 ]] && die "Run as root: sudo bash deploy.sh"
 
+# ── Detect package manager ─────────────────────────────────────────────────────
+if command -v dnf &>/dev/null; then
+  PKG="dnf"
+elif command -v yum &>/dev/null; then
+  PKG="yum"
+else
+  die "Neither dnf nor yum found — is this a RHEL/CentOS system?"
+fi
+info "Package manager: $PKG"
+
 # ── Banner ─────────────────────────────────────────────────────────────────────
 echo -e "${BOLD}"
 echo "  ╔══════════════════════════════════════════╗"
-echo "  ║   Interview Questions — Deploy Script    ║"
+echo "  ║   Interview Questions — Deploy (RHEL)    ║"
 echo "  ║   User: interview  ~${APP_HOME}          ║"
 echo "  ╚══════════════════════════════════════════╝"
 echo -e "${RESET}"
@@ -39,68 +51,84 @@ echo -e "${RESET}"
 # ── Configuration prompts ──────────────────────────────────────────────────────
 header "Configuration"
 
-read -rp "  Domain name (e.g. interview.example.com): " DOMAIN
-[[ -z "$DOMAIN" ]] && die "Domain name is required."
+read -rp "  Sub-path for the app [/interview]: " APP_SUBPATH
+APP_SUBPATH="${APP_SUBPATH:-/interview}"
+APP_SUBPATH="/${APP_SUBPATH#/}"          # ensure leading slash, strip trailing
+APP_SUBPATH="${APP_SUBPATH%/}"
 
 read -rp "  Gunicorn port [5001]: " APP_PORT
 APP_PORT="${APP_PORT:-5001}"
-
-read -rp "  Set up Let's Encrypt SSL? (y/n) [y]: " USE_CERTBOT
-USE_CERTBOT="${USE_CERTBOT:-y}"
 
 read -rp "  Git repo URL [https://github.com/geeteq/interview-questions.git]: " REPO_URL
 REPO_URL="${REPO_URL:-https://github.com/geeteq/interview-questions.git}"
 
 echo ""
-echo -e "${BOLD}  Summary:${RESET}"
+echo -e "${BOLD}  Summary${RESET}"
 echo "    User       : $APP_USER"
 echo "    Home       : $APP_HOME"
 echo "    App dir    : $APP_DIR"
 echo "    Logs       : $LOG_DIR"
 echo "    Port       : $APP_PORT"
-echo "    Domain     : $DOMAIN"
-echo "    SSL        : $USE_CERTBOT"
+echo "    Sub-path   : $APP_SUBPATH"
+echo "    Access URL : http://SERVER${APP_SUBPATH}/"
 echo "    Repo       : $REPO_URL"
 echo ""
 read -rp "  Proceed? (y/n) [y]: " CONFIRM
 [[ "${CONFIRM:-y}" =~ ^[Nn] ]] && { echo "Aborted."; exit 0; }
 
 # ── 1 — System packages ────────────────────────────────────────────────────────
-header "1/8 — System packages"
+header "1/7 — System packages"
 
-apt-get update -qq
-PACKAGES=(python3 python3-venv python3-pip apache2 git)
-[[ "$USE_CERTBOT" =~ ^[Yy] ]] && PACKAGES+=(certbot python3-certbot-apache)
+pkg_installed() { rpm -q "$1" &>/dev/null; }
 
+PACKAGES=(python3 httpd git)
 for pkg in "${PACKAGES[@]}"; do
-  if dpkg -s "$pkg" &>/dev/null; then
+  if pkg_installed "$pkg"; then
     info "$pkg already installed"
   else
     info "Installing $pkg…"
-    apt-get install -y -qq "$pkg"
+    $PKG install -y -q "$pkg"
     ok "$pkg installed"
   fi
 done
 
+# mod_ssl for Apache (provides mod_proxy too on RHEL)
+for mod_pkg in mod_ssl; do
+  if pkg_installed "$mod_pkg"; then
+    info "$mod_pkg already installed"
+  else
+    info "Installing $mod_pkg…"
+    $PKG install -y -q "$mod_pkg"
+    ok "$mod_pkg installed"
+  fi
+done
+
+# python3-venv may be a separate package on some RHEL versions
+if ! python3 -m venv --help &>/dev/null 2>&1; then
+  info "Installing python3 venv support…"
+  $PKG install -y -q python3-virtualenv 2>/dev/null || \
+  $PKG install -y -q python3-venv       2>/dev/null || \
+  warn "Could not install venv package — will try with base python3"
+fi
+
 # ── 2 — interview user ─────────────────────────────────────────────────────────
-header "2/8 — System user"
+header "2/7 — System user"
 
 if id "$APP_USER" &>/dev/null; then
   info "User '$APP_USER' already exists"
 else
   useradd --system --create-home --home-dir "$APP_HOME" \
           --shell /bin/bash "$APP_USER"
-  ok "User '$APP_USER' created with home $APP_HOME"
+  ok "User '$APP_USER' created"
 fi
 
-# Ensure home directory exists with correct ownership
 mkdir -p "$APP_HOME"
 chown "$APP_USER:$APP_USER" "$APP_HOME"
 chmod 750 "$APP_HOME"
-ok "Home directory: $APP_HOME"
+ok "Home: $APP_HOME"
 
 # ── 3 — Code ──────────────────────────────────────────────────────────────────
-header "3/8 — App code"
+header "3/7 — App code"
 
 if [[ -d "$APP_DIR/.git" ]]; then
   info "Repo already present — pulling latest…"
@@ -112,15 +140,15 @@ else
   ok "Code cloned"
 fi
 
-# ── 4 — Python virtualenv & dependencies ──────────────────────────────────────
-header "4/8 — Python environment"
+# ── 4 — Python environment ─────────────────────────────────────────────────────
+header "4/7 — Python environment"
 
 if [[ ! -d "$VENV" ]]; then
-  info "Creating virtualenv at $VENV…"
+  info "Creating virtualenv…"
   as_interview python3 -m venv "$VENV"
-  ok "Virtualenv created"
+  ok "Virtualenv created at $VENV"
 else
-  info "Virtualenv exists — skipping creation"
+  info "Virtualenv exists — skipping"
 fi
 
 info "Installing Python dependencies…"
@@ -129,24 +157,21 @@ as_interview "$VENV/bin/pip" install --quiet -r "$APP_DIR/requirements.txt"
 ok "Dependencies installed"
 
 # ── 5 — Database ───────────────────────────────────────────────────────────────
-header "5/8 — Database"
+header "5/7 — Database"
 
 if [[ -f "$DB" ]]; then
-  warn "Database already exists at $DB — skipping init (data preserved)"
+  warn "Database already exists — skipping init (data preserved)"
 else
   info "Initialising database…"
   (cd "$APP_DIR" && as_interview "$VENV/bin/python" init_db.py)
   ok "Database initialised with sample questions"
 fi
 
-# ── 6 — Logs directory ─────────────────────────────────────────────────────────
-header "6/8 — Log directory"
-
 as_interview mkdir -p "$LOG_DIR"
 ok "Log directory: $LOG_DIR"
 
-# ── 7 — Systemd service ────────────────────────────────────────────────────────
-header "7/8 — Systemd service"
+# ── 6 — Systemd service ────────────────────────────────────────────────────────
+header "6/7 — Systemd service"
 
 WORKER_COUNT=$(( $(nproc) * 2 + 1 ))
 [[ $WORKER_COUNT -gt 9 ]] && WORKER_COUNT=9
@@ -161,6 +186,7 @@ User=${APP_USER}
 Group=${APP_USER}
 WorkingDirectory=${APP_DIR}
 Environment="PATH=${VENV}/bin"
+Environment="INTERVIEW_BASE_PATH=${APP_SUBPATH}"
 ExecStartPre=${VENV}/bin/python init_db.py
 ExecStart=${VENV}/bin/gunicorn \\
     --workers ${WORKER_COUNT} \\
@@ -185,85 +211,58 @@ for i in {1..10}; do
     break
   fi
   sleep 1
-  [[ $i -eq 10 ]] && die "Gunicorn failed to start — check: journalctl -u interview-questions -n 30"
+  [[ $i -eq 10 ]] && die "Gunicorn failed to start — run: journalctl -u interview-questions -n 40"
 done
 
-# ── 8 — Apache ─────────────────────────────────────────────────────────────────
-header "8/8 — Apache + SSL"
+# ── 7 — Apache ─────────────────────────────────────────────────────────────────
+header "7/7 — Apache reverse proxy"
 
-info "Enabling required Apache modules…"
-a2enmod proxy proxy_http headers ssl rewrite -q
-ok "Modules enabled"
+# On RHEL, mod_proxy is included in httpd — no a2enmod needed.
+# Config files in /etc/httpd/conf.d/ are loaded automatically.
+APACHE_CONF="/etc/httpd/conf.d/interview-questions.conf"
 
-APACHE_CONF="/etc/apache2/sites-available/interview-questions.conf"
-SSL_DIR="/etc/ssl/interview-questions"
+cat > "$APACHE_CONF" <<EOF
+# Interview Questions — reverse proxy at ${APP_SUBPATH}/
+# SSL is terminated upstream; this block handles the internal HTTP path only.
 
-if [[ "$USE_CERTBOT" =~ ^[Yy] ]]; then
-  # HTTP-only first so certbot can complete its challenge
-  cat > "$APACHE_CONF" <<EOF
-<VirtualHost *:80>
-    ServerName ${DOMAIN}
+ProxyPreserveHost On
+RequestHeader set X-Forwarded-Proto "https"
 
-    ProxyPreserveHost On
-    RequestHeader set X-Forwarded-Proto "http"
-    ProxyPass        / http://127.0.0.1:${APP_PORT}/
-    ProxyPassReverse / http://127.0.0.1:${APP_PORT}/
+# Pages
+ProxyPass        ${APP_SUBPATH}  http://127.0.0.1:${APP_PORT}
+ProxyPassReverse ${APP_SUBPATH}  http://127.0.0.1:${APP_PORT}
 
-    ErrorLog  /var/log/apache2/interview-questions-error.log
-    CustomLog /var/log/apache2/interview-questions-access.log combined
-</VirtualHost>
+# Trailing-slash redirect so /interview → /interview/
+RedirectMatch ^${APP_SUBPATH}$  ${APP_SUBPATH}/
 EOF
 
-  a2ensite interview-questions.conf -q
-  apache2ctl configtest 2>/dev/null || die "Apache config syntax error"
-  systemctl reload apache2
-  ok "Apache running (HTTP)"
-
-  info "Requesting Let's Encrypt certificate for ${DOMAIN}…"
-  if certbot --apache -d "$DOMAIN" --non-interactive --agree-tos \
-       --email "admin@${DOMAIN}" --redirect --quiet; then
-    ok "Let's Encrypt certificate issued — HTTPS enabled"
-  else
-    warn "Certbot could not issue a certificate (is DNS pointing here?)."
-    warn "Site is live over HTTP. Re-run when DNS is ready:"
-    warn "  certbot --apache -d ${DOMAIN}"
-  fi
-
+# SELinux: allow Apache to open network connections (required for mod_proxy on RHEL)
+if command -v setsebool &>/dev/null; then
+  info "Configuring SELinux: httpd_can_network_connect → on"
+  setsebool -P httpd_can_network_connect 1
+  ok "SELinux boolean set"
 else
-  info "Generating self-signed certificate…"
-  mkdir -p "$SSL_DIR"
-  openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    -keyout "$SSL_DIR/server.key" \
-    -out    "$SSL_DIR/server.crt" \
-    -subj   "/CN=${DOMAIN}" -quiet
+  warn "setsebool not found — skipping SELinux config (may not be needed)"
+fi
 
-  cat > "$APACHE_CONF" <<EOF
-<VirtualHost *:80>
-    ServerName ${DOMAIN}
-    Redirect permanent / https://${DOMAIN}/
-</VirtualHost>
+# Validate and reload Apache
+if httpd -t 2>/dev/null; then
+  ok "Apache config syntax OK"
+else
+  die "Apache config syntax error — check $APACHE_CONF"
+fi
 
-<VirtualHost *:443>
-    ServerName ${DOMAIN}
+systemctl enable httpd
+systemctl restart httpd
+ok "Apache restarted"
 
-    SSLEngine on
-    SSLCertificateFile    ${SSL_DIR}/server.crt
-    SSLCertificateKeyFile ${SSL_DIR}/server.key
-
-    ProxyPreserveHost On
-    RequestHeader set X-Forwarded-Proto "https"
-    ProxyPass        / http://127.0.0.1:${APP_PORT}/
-    ProxyPassReverse / http://127.0.0.1:${APP_PORT}/
-
-    ErrorLog  /var/log/apache2/interview-questions-error.log
-    CustomLog /var/log/apache2/interview-questions-access.log combined
-</VirtualHost>
-EOF
-
-  a2ensite interview-questions.conf -q
-  apache2ctl configtest 2>/dev/null || die "Apache config syntax error"
-  systemctl reload apache2
-  ok "Apache running with self-signed certificate"
+# ── Firewall ───────────────────────────────────────────────────────────────────
+if command -v firewall-cmd &>/dev/null && systemctl is-active --quiet firewalld; then
+  info "Opening HTTP (80) and HTTPS (443) in firewalld…"
+  firewall-cmd --permanent --add-service=http  --quiet
+  firewall-cmd --permanent --add-service=https --quiet
+  firewall-cmd --reload --quiet
+  ok "Firewall rules updated"
 fi
 
 # ── Done ───────────────────────────────────────────────────────────────────────
@@ -276,11 +275,11 @@ echo "    Database : ${DB}"
 echo "    Logs     : ${LOG_DIR}"
 echo "    Venv     : ${VENV}"
 echo ""
-echo -e "${BOLD}  URLs${RESET}"
-echo "    Candidate  : https://${DOMAIN}/"
-echo "    Admin      : https://${DOMAIN}/admin"
-echo "    Questions  : https://${DOMAIN}/admin/questions"
-echo "    Sessions   : https://${DOMAIN}/admin/sessions"
+echo -e "${BOLD}  Endpoints${RESET}"
+echo "    Candidate  : http://SERVER${APP_SUBPATH}/"
+echo "    Admin      : http://SERVER${APP_SUBPATH}/admin"
+echo "    Questions  : http://SERVER${APP_SUBPATH}/admin/questions"
+echo "    Sessions   : http://SERVER${APP_SUBPATH}/admin/sessions"
 echo ""
 echo -e "${BOLD}  Useful commands${RESET}"
 echo "    Status   : systemctl status interview-questions"

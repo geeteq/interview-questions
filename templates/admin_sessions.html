@@ -126,9 +126,9 @@
 <div class="header">
   <h1>🎙 Interview</h1>
   <nav class="nav-tabs">
-    <a href="/admin"           class="nav-tab">Interview</a>
-    <a href="/admin/questions" class="nav-tab">Questions</a>
-    <a href="/admin/sessions"  class="nav-tab active">Sessions</a>
+    <a href="{{ base_path }}/admin"           class="nav-tab">Interview</a>
+    <a href="{{ base_path }}/admin/questions" class="nav-tab">Questions</a>
+    <a href="{{ base_path }}/admin/sessions"  class="nav-tab active">Sessions</a>
   </nav>
 </div>
 
@@ -194,8 +194,10 @@
   let openId       = null;
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+  const ROOT = "{{ base_path }}";
+
   async function api(path) {
-    const r = await fetch(path);
+    const r = await fetch(ROOT + path);
     return r.json();
   }
   function esc(s) {

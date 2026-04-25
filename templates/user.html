@@ -209,11 +209,13 @@
     });
   }
 
+  const ROOT = "{{ base_path }}";
+
   let lastQuestionId = null;
 
   async function poll() {
     try {
-      const res  = await fetch("/api/state");
+      const res  = await fetch(ROOT + "/api/state");
       const data = await res.json();
 
       if (data.status === "waiting") {

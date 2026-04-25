@@ -316,9 +316,9 @@
 <div class="header">
   <h1>🎙 Interview</h1>
   <nav class="nav-tabs">
-    <a href="/admin"          class="nav-tab active">Interview</a>
-    <a href="/admin/questions" class="nav-tab">Questions</a>
-    <a href="/admin/sessions"  class="nav-tab">Sessions</a>
+    <a href="{{ base_path }}/admin"           class="nav-tab active">Interview</a>
+    <a href="{{ base_path }}/admin/questions" class="nav-tab">Questions</a>
+    <a href="{{ base_path }}/admin/sessions"  class="nav-tab">Sessions</a>
   </nav>
   <span class="pill" id="header-status">No Session</span>
 </div>
@@ -454,9 +454,11 @@
     setTimeout(() => t.classList.remove("show"), duration);
   }
 
+  const ROOT = "{{ base_path }}";
+
   // ── Fetch helpers ──────────────────────────────────────────────────────────
   async function api(path, opts = {}) {
-    const res = await fetch(path, {
+    const res = await fetch(ROOT + path, {
       headers: { "Content-Type": "application/json" },
       ...opts,
     });
