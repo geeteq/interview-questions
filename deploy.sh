@@ -17,7 +17,21 @@ warn()   { echo -e "${YELLOW}  ⚠ ${1}${RESET}"; }
 die()    { echo -e "${RED}  ✘ ${1}${RESET}"; exit 1; }
 header() { echo -e "\n${BOLD}${CYAN}▸ ${1}${RESET}"; }
 
-as_interview() { sudo -u "$APP_USER" "$@"; }
+# Pass proxy env vars explicitly — sudo strips them by default.
+as_interview() {
+  if [[ -n "${HTTPS_PROXY:-}" ]]; then
+    sudo -u "$APP_USER" env \
+      https_proxy="$HTTPS_PROXY" \
+      HTTPS_PROXY="$HTTPS_PROXY" \
+      http_proxy="${HTTP_PROXY:-$HTTPS_PROXY}" \
+      HTTP_PROXY="${HTTP_PROXY:-$HTTPS_PROXY}" \
+      no_proxy="${NO_PROXY:-localhost,127.0.0.1,::1}" \
+      NO_PROXY="${NO_PROXY:-localhost,127.0.0.1,::1}" \
+      "$@"
+  else
+    sudo -u "$APP_USER" "$@"
+  fi
+}
 
 # ── Fixed identity ─────────────────────────────────────────────────────────────
 APP_USER="interview"
@@ -62,6 +76,19 @@ APP_PORT="${APP_PORT:-5001}"
 read -rp "  Git repo URL [https://github.com/geeteq/interview-questions.git]: " REPO_URL
 REPO_URL="${REPO_URL:-https://github.com/geeteq/interview-questions.git}"
 
+read -rp "  HTTPS proxy (leave blank if not needed): " PROXY_INPUT
+if [[ -n "$PROXY_INPUT" ]]; then
+  export https_proxy="$PROXY_INPUT"
+  export HTTPS_PROXY="$PROXY_INPUT"
+  export http_proxy="$PROXY_INPUT"
+  export HTTP_PROXY="$PROXY_INPUT"
+  export no_proxy="localhost,127.0.0.1,::1"
+  export NO_PROXY="localhost,127.0.0.1,::1"
+  PROXY_DISPLAY="$PROXY_INPUT"
+else
+  PROXY_DISPLAY="(none)"
+fi
+
 echo ""
 echo -e "${BOLD}  Summary${RESET}"
 echo "    User       : $APP_USER"
@@ -72,6 +99,7 @@ echo "    Port       : $APP_PORT"
 echo "    Sub-path   : $APP_SUBPATH"
 echo "    Access URL : http://SERVER${APP_SUBPATH}/"
 echo "    Repo       : $REPO_URL"
+echo "    HTTPS proxy: $PROXY_DISPLAY"
 echo ""
 read -rp "  Proceed? (y/n) [y]: " CONFIRM
 [[ "${CONFIRM:-y}" =~ ^[Nn] ]] && { echo "Aborted."; exit 0; }
@@ -126,6 +154,13 @@ mkdir -p "$APP_HOME"
 chown "$APP_USER:$APP_USER" "$APP_HOME"
 chmod 750 "$APP_HOME"
 ok "Home: $APP_HOME"
+
+# Persist proxy in git config for the interview user so future pulls work too
+if [[ -n "${HTTPS_PROXY:-}" ]]; then
+  as_interview git config --global http.proxy  "$HTTPS_PROXY"
+  as_interview git config --global https.proxy "$HTTPS_PROXY"
+  ok "Git proxy set for $APP_USER (${HTTPS_PROXY})"
+fi
 
 # ── 3 — Code ──────────────────────────────────────────────────────────────────
 header "3/7 — App code"
@@ -288,4 +323,11 @@ echo "    App logs : tail -f ${LOG_DIR}/error.log"
 echo "    Restart  : systemctl restart interview-questions"
 echo "    Update   : sudo -u ${APP_USER} git -C ${APP_DIR} pull && systemctl restart interview-questions"
 echo "    Shell    : sudo -u ${APP_USER} -s"
+if [[ -n "${HTTPS_PROXY:-}" ]]; then
+echo ""
+echo -e "${BOLD}  Proxy${RESET}"
+echo "    Used for : dnf, git, pip during this deploy"
+echo "    Git      : persisted in ~${APP_USER}/.gitconfig"
+echo "    To clear : sudo -u ${APP_USER} git config --global --unset http.proxy"
+fi
 echo ""
