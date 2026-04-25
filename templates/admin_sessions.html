@@ -119,6 +119,20 @@
 
   .print-btn { font-size: .78rem; padding: .3rem .75rem; background: #1e2130; color: var(--sub); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: all .15s; }
   .print-btn:hover { color: var(--text); border-color: #3d4166; }
+
+  /* ── Sub-tabs (Active / Archived) ── */
+  .sub-tabs { display: flex; gap: .25rem; margin-bottom: 1rem; }
+  .sub-tab { font-size: .82rem; font-weight: 600; padding: .35rem .85rem; border-radius: 7px; background: transparent; color: var(--sub); border: 1px solid transparent; cursor: pointer; transition: all .15s; }
+  .sub-tab:hover  { background: #1e2130; color: var(--text); }
+  .sub-tab.active { background: #1e2130; color: var(--accent-lt); border-color: var(--border); }
+  .sub-tab .count { display: inline-block; margin-left: .35rem; font-size: .72rem; padding: .05rem .4rem; border-radius: 999px; background: #11141d; color: var(--muted); }
+  .sub-tab.active .count { color: var(--accent-lt); }
+
+  /* ── Row actions ── */
+  .row-actions { display: flex; gap: .35rem; justify-content: flex-end; }
+  .row-btn { font-size: .72rem; font-weight: 600; padding: .25rem .55rem; background: #1e2130; color: var(--sub); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; transition: all .15s; white-space: nowrap; }
+  .row-btn:hover { color: var(--text); border-color: #3d4166; }
+  .row-btn.danger:hover { color: #f87171; border-color: #5a2424; background: #2a1010; }
 </style>
 </head>
 <body>
@@ -165,6 +179,16 @@
     </div>
   </div>
 
+  <!-- Sub-tabs -->
+  <div class="sub-tabs">
+    <button class="sub-tab active" data-view="active" onclick="switchView('active')">
+      Active <span class="count" id="count-active">—</span>
+    </button>
+    <button class="sub-tab" data-view="archived" onclick="switchView('archived')">
+      Archived <span class="count" id="count-archived">—</span>
+    </button>
+  </div>
+
   <!-- Sessions table -->
   <div class="table-wrap">
     <table id="sessions-table">
@@ -178,27 +202,37 @@
           <th>Result</th>
           <th>Grade</th>
           <th>Status</th>
+          <th style="width:160px"></th>
           <th style="width:24px"></th>
         </tr>
       </thead>
       <tbody id="sessions-body">
-        <tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--sub);">Loading…</td></tr>
+        <tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--sub);">Loading…</td></tr>
       </tbody>
     </table>
   </div>
 </main>
 
 <script>
-  let sessions     = [];
+  let sessions     = [];   // currently displayed list (active or archived)
   let resultsCache = {};    // { sid: resultsData }
   let openId       = null;
+  let view         = "active"; // "active" | "archived"
+  let counts       = { active: 0, archived: 0 };
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   const ROOT = "{{ base_path }}";
 
-  async function api(path) {
-    const r = await fetch(ROOT + path);
+  async function api(path, opts) {
+    const r = await fetch(ROOT + path, opts);
     return r.json();
+  }
+  async function apiJSON(path, method, body) {
+    return api(path, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+    });
   }
   function esc(s) {
     return String(s || "")
@@ -233,13 +267,33 @@
 
   // ── Load sessions ──────────────────────────────────────────────────────────
   async function load() {
-    sessions = await api("/api/sessions");
+    const [active, archived] = await Promise.all([
+      api("/api/sessions?archived=0"),
+      api("/api/sessions?archived=1"),
+    ]);
+    counts.active   = active.length;
+    counts.archived = archived.length;
+    document.getElementById("count-active").textContent   = counts.active;
+    document.getElementById("count-archived").textContent = counts.archived;
+
+    sessions = view === "archived" ? archived : active;
+    openId = null;
     renderStats();
     renderTable();
   }
 
+  function switchView(next) {
+    if (view === next) return;
+    view = next;
+    document.querySelectorAll(".sub-tab").forEach(b => {
+      b.classList.toggle("active", b.dataset.view === view);
+    });
+    load();
+  }
+
   // ── Stats ──────────────────────────────────────────────────────────────────
   async function renderStats() {
+    const label    = view === "archived" ? "archived session" : "session";
     const total    = sessions.length;
     const done     = sessions.filter(s => s.completed_at);
     const donePct  = total ? Math.round(done.length / total * 100) : 0;
@@ -252,7 +306,7 @@
       document.getElementById("stat-avg").textContent       = "—";
       document.getElementById("stat-top").textContent       = "—";
       document.getElementById("stat-top-name").textContent  = "no results yet";
-      document.getElementById("page-sub").textContent       = `${total} session${total !== 1 ? "s" : ""} recorded`;
+      document.getElementById("page-sub").textContent       = `${total} ${label}${total !== 1 ? "s" : ""} recorded`;
       return;
     }
 
@@ -268,21 +322,27 @@
     document.getElementById("stat-top").textContent       = best.percentage + "%";
     document.getElementById("stat-top-name").textContent  = best.candidate;
     document.getElementById("page-sub").textContent       =
-      `${total} session${total !== 1 ? "s" : ""} · ${done.length} completed · avg ${avg}%`;
+      `${total} ${label}${total !== 1 ? "s" : ""} · ${done.length} completed · avg ${avg}%`;
   }
 
   // ── Table ──────────────────────────────────────────────────────────────────
   function renderTable() {
     const tbody = document.getElementById("sessions-body");
     if (!sessions.length) {
-      tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><strong>No sessions yet.</strong><p>Start an interview from the Interview tab to create a session.</p></div></td></tr>`;
+      const msg = view === "archived"
+        ? `<strong>No archived sessions.</strong><p>Archived sessions will appear here.</p>`
+        : `<strong>No sessions yet.</strong><p>Start an interview from the Interview tab to create a session.</p>`;
+      tbody.innerHTML = `<tr><td colspan="10"><div class="empty">${msg}</div></td></tr>`;
       return;
     }
     tbody.innerHTML = sessions.map((s, i) => renderSessionRows(s, i)).join("");
-    // Bind row click
+    // Bind row click (ignore clicks on action buttons)
     sessions.forEach(s => {
       const row = document.getElementById(`srow-${s.id}`);
-      if (row) row.addEventListener("click", () => toggleDetail(s.id));
+      if (row) row.addEventListener("click", (e) => {
+        if (e.target.closest(".row-actions")) return;
+        toggleDetail(s.id);
+      });
     });
   }
 
@@ -301,6 +361,15 @@
         <span style="font-weight:700;color:${pctColor(pct)}">${pct}%</span>
       </div>` : `<span style="color:var(--muted)">—</span>`;
 
+    const actions = view === "archived"
+      ? `<div class="row-actions">
+           <button class="row-btn" onclick="restoreSession(event, ${s.id})">Restore</button>
+           <button class="row-btn danger" onclick="deleteSession(event, ${s.id}, '${esc(s.candidate_name)}')">Delete</button>
+         </div>`
+      : `<div class="row-actions">
+           <button class="row-btn" onclick="archiveSession(event, ${s.id})">Archive</button>
+         </div>`;
+
     return `
 <tr id="srow-${s.id}" class="${isOpen ? "open" : ""}">
   <td style="color:var(--muted);font-size:.78rem;">#${s.id}</td>
@@ -311,15 +380,43 @@
   <td>${pctBar}</td>
   <td>${grade ? gradeBadge(grade) : '<span style="color:var(--muted)">—</span>'}</td>
   <td><span class="status-badge status-${done ? "complete" : "active"}">${done ? "Complete" : "Active"}</span></td>
+  <td>${actions}</td>
   <td><span class="chevron ${isOpen ? "open" : ""}">▼</span></td>
 </tr>
 <tr id="drow-${s.id}" class="detail-row ${isOpen ? "open" : ""}">
-  <td colspan="9" class="detail-cell" id="dcell-${s.id}">
+  <td colspan="10" class="detail-cell" id="dcell-${s.id}">
     <div class="detail-inner" id="detail-${s.id}">
       ${isOpen && resultsCache[s.id] ? renderDetail(s.id) : '<span style="color:var(--sub)">Loading…</span>'}
     </div>
   </td>
 </tr>`;
+  }
+
+  // ── Archive / restore / delete ─────────────────────────────────────────────
+  async function archiveSession(e, sid) {
+    e.stopPropagation();
+    await apiJSON(`/api/sessions/${sid}/archive`, "POST", { archived: true });
+    delete resultsCache[sid];
+    await load();
+  }
+
+  async function restoreSession(e, sid) {
+    e.stopPropagation();
+    await apiJSON(`/api/sessions/${sid}/archive`, "POST", { archived: false });
+    delete resultsCache[sid];
+    await load();
+  }
+
+  async function deleteSession(e, sid, name) {
+    e.stopPropagation();
+    if (!confirm(`Permanently delete session #${sid} for ${name}?\nThis removes responses, chat, and the session itself. This cannot be undone.`)) return;
+    const res = await apiJSON(`/api/sessions/${sid}`, "DELETE");
+    if (res && res.error) {
+      alert(res.error);
+      return;
+    }
+    delete resultsCache[sid];
+    await load();
   }
 
   function renderDetail(sid) {

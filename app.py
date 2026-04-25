@@ -42,7 +42,7 @@ def state():
     """Polled by the candidate screen every 2 s to get the current question."""
     c = db()
     session = c.execute(
-        "SELECT * FROM sessions WHERE completed_at IS NULL ORDER BY started_at DESC LIMIT 1"
+        "SELECT * FROM sessions WHERE completed_at IS NULL AND archived=0 ORDER BY started_at DESC LIMIT 1"
     ).fetchone()
 
     if not session:
@@ -83,11 +83,42 @@ def state():
 
 @app.route("/api/sessions", methods=["GET"])
 def list_sessions():
+    archived = 1 if request.args.get("archived") == "1" else 0
     c = db()
     rows = c.execute(
-        "SELECT * FROM sessions ORDER BY started_at DESC"
+        "SELECT * FROM sessions WHERE archived=? ORDER BY started_at DESC",
+        (archived,),
     ).fetchall()
     return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/sessions/<int:sid>/archive", methods=["POST"])
+def archive_session(sid):
+    data = request.json or {}
+    archived = 1 if data.get("archived", True) else 0
+    c = db()
+    found = c.execute("SELECT id FROM sessions WHERE id=?", (sid,)).fetchone()
+    if not found:
+        return jsonify({"error": "Not found"}), 404
+    c.execute("UPDATE sessions SET archived=? WHERE id=?", (archived, sid))
+    c.commit()
+    return jsonify({"success": True, "archived": bool(archived)})
+
+
+@app.route("/api/sessions/<int:sid>", methods=["DELETE"])
+def delete_session(sid):
+    c = db()
+    row = c.execute("SELECT archived FROM sessions WHERE id=?", (sid,)).fetchone()
+    if not row:
+        return jsonify({"error": "Not found"}), 404
+    if not row["archived"]:
+        return jsonify({"error": "Session must be archived before deletion."}), 400
+    c.execute("DELETE FROM session_chat      WHERE session_id=?", (sid,))
+    c.execute("DELETE FROM session_responses WHERE session_id=?", (sid,))
+    c.execute("DELETE FROM session_state     WHERE session_id=?", (sid,))
+    c.execute("DELETE FROM sessions          WHERE id=?",         (sid,))
+    c.commit()
+    return jsonify({"success": True})
 
 
 @app.route("/api/sessions", methods=["POST"])

@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     candidate_name  TEXT NOT NULL,
     started_at      TEXT NOT NULL,
-    completed_at    TEXT
+    completed_at    TEXT,
+    archived        INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS session_state (
@@ -138,6 +139,10 @@ QUESTIONS = [
 def init():
     conn = sqlite3.connect(DB)
     conn.executescript(SCHEMA)
+
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(sessions)").fetchall()]
+    if "archived" not in cols:
+        conn.execute("ALTER TABLE sessions ADD COLUMN archived INTEGER NOT NULL DEFAULT 0")
 
     count = conn.execute("SELECT COUNT(*) FROM questions").fetchone()[0]
     if count == 0:
