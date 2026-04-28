@@ -6,3 +6,8 @@ interview.db
 *.db-shm
 *.db-wal
 .DS_Store
+
+# Master question bank — the questions and ideal answers are not for public
+# distribution. Everything under src/ stays local to the maintainer.
+src/
+~$*

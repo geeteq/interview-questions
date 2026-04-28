@@ -1,7 +1,6 @@
 """One-time migration: inserts Tech, Management, and HR question sets."""
 import sqlite3
-
-DB = "interview.db"
+from init_db import DB
 
 NEW_QUESTIONS = [
     # ── Tech ──────────────────────────────────────────────────────────────────

@@ -134,6 +134,12 @@
     font-size: .8rem;
     color: #374151;
   }
+
+  /* ── Diagram ── */
+  .diagram-wrap { margin-top: 1.5rem; }
+  .diagram-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: .6rem; flex-wrap: wrap; gap: .5rem; }
+  .diagram-hd h3 { font-size: .82rem; font-weight: 700; color: #a5b4fc; letter-spacing: .05em; text-transform: uppercase; }
+  .diagram-frame { width: 100%; height: 460px; border: 1px solid #252840; border-radius: 12px; background: #fff; }
 </style>
 </head>
 <body>
@@ -162,6 +168,13 @@
 
   <div class="card" id="question-card">
     <p class="q-text" id="q-text">Loading…</p>
+
+    <div class="diagram-wrap" id="diagram-wrap" style="display:none;">
+      <div class="diagram-hd">
+        <h3>📐 Base diagram</h3>
+      </div>
+      <iframe class="diagram-frame" id="diagram-frame" src="about:blank"></iframe>
+    </div>
   </div>
 
   <p class="footer-note">Please answer the question aloud. The interviewer will advance when ready.</p>
@@ -191,6 +204,30 @@
   const ROOT = "{{ base_path }}";
 
   let lastQuestionId = null;
+  let lastDiagramShownForQid = null;   // track when admin publishes/unpublishes mid-question
+
+  // ── drawio viewer via URL hash (#R<URL-encoded-XML>) ──
+  // Reliable across browsers; no postMessage handshake required.
+  const VIEWER_BASE = "https://viewer.diagrams.net/?lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1&toolbar=1";
+  function setDiagramXml(xml) {
+    const frame = document.getElementById("diagram-frame");
+    frame.src = VIEWER_BASE + "#R" + encodeURIComponent(xml);
+  }
+
+  async function showDiagram(qid) {
+    document.getElementById("diagram-wrap").style.display = "block";
+    try {
+      const r = await fetch(ROOT + `/api/questions/${qid}/diagram`);
+      if (!r.ok) return;
+      const d = await r.json();
+      setDiagramXml(d.xml);
+    } catch (_) {}
+  }
+
+  function hideDiagram() {
+    document.getElementById("diagram-wrap").style.display = "none";
+    lastDiagramShownForQid = null;
+  }
 
   async function poll() {
     try {
@@ -218,12 +255,22 @@
           document.getElementById("progress-label").textContent = `${data.q_number} / ${data.q_total}`;
 
           document.getElementById("q-text").textContent       = q.text;
+          hideDiagram();   // start every new question with no diagram visible
 
           // Re-trigger the slide-in animation
           const card = document.getElementById("question-card");
           card.style.animation = "none";
           card.offsetHeight;            // reflow
           card.style.animation = "";
+        }
+
+        // Diagram visibility re-evaluated every poll so admin "Publish" reveals
+        // the base diagram mid-question, and "Unpublish" hides it again.
+        if (q.has_diagram && lastDiagramShownForQid !== q.id) {
+          showDiagram(q.id);
+          lastDiagramShownForQid = q.id;
+        } else if (!q.has_diagram && lastDiagramShownForQid === q.id) {
+          hideDiagram();
         }
 
         show("question");

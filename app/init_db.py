@@ -1,6 +1,38 @@
 import sqlite3
 
-DB = "interview.db"
+from config import DB_PATH as DB, PROJECT_ROOT, APP_DIR  # noqa: F401
+
+# Make sure the parent dir exists so the first sqlite3.connect doesn't fail
+# on a fresh checkout.
+DB.parent.mkdir(parents=True, exist_ok=True)
+
+DEFAULT_INTERVIEW_MINUTES = 45  # target slot for one interview
+
+# Per-category time tuning. Drawing-board questions take much longer than a
+# quick intro/exit; tech and behavioural fall in the middle.
+_TIME_FACTOR_BY_CATEGORY = {
+    "Drawing Board":   1.7,
+    "Drawing board":   1.7,
+    "Tech":            1.0,
+    "Behavioural":     1.0,
+    "Management":      1.0,
+    "HR":              0.8,
+    "Interpersonal":   1.0,
+    "Adaptability":    1.0,
+    "Time Management": 1.0,
+    "Ethics & Security": 1.2,
+    "Safety":          0.8,
+    "Intro":           0.6,
+    "Exit":            0.5,
+}
+
+
+def estimate_minutes(category: str, difficulty: int) -> float:
+    """Rough estimate in minutes a candidate is expected to spend on this
+    question. Used to populate the avg_minutes column when one isn't set."""
+    factor = _TIME_FACTOR_BY_CATEGORY.get(category, 1.0)
+    return round(1.0 + float(difficulty) * factor, 1)
+
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS questions (
@@ -9,7 +41,10 @@ CREATE TABLE IF NOT EXISTS questions (
     category     TEXT    NOT NULL,
     difficulty   INTEGER NOT NULL,   -- 1 (easy) → 5 (hard)
     weight       REAL    NOT NULL,   -- score multiplier
-    order_index  INTEGER NOT NULL
+    avg_minutes  REAL    NOT NULL DEFAULT 0,  -- expected time per question
+    order_index  INTEGER NOT NULL,
+    archived     INTEGER NOT NULL DEFAULT 0,
+    diagram_xml  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS possible_answers (
@@ -43,10 +78,31 @@ CREATE TABLE IF NOT EXISTS session_responses (
     selected_answer_id  INTEGER,
     admin_comment       TEXT    DEFAULT '',
     score_awarded       REAL    DEFAULT 0,
+    skipped             INTEGER NOT NULL DEFAULT 0,
     evaluated_at        TEXT,
     FOREIGN KEY (session_id)         REFERENCES sessions(id),
     FOREIGN KEY (question_id)        REFERENCES questions(id),
     FOREIGN KEY (selected_answer_id) REFERENCES possible_answers(id)
+);
+
+CREATE TABLE IF NOT EXISTS session_questions (
+    session_id    INTEGER NOT NULL,
+    question_id   INTEGER NOT NULL,
+    order_index   INTEGER NOT NULL,
+    published_at  TEXT,
+    PRIMARY KEY (session_id, question_id),
+    FOREIGN KEY (session_id)  REFERENCES sessions(id),
+    FOREIGN KEY (question_id) REFERENCES questions(id)
+);
+
+CREATE TABLE IF NOT EXISTS session_diagrams (
+    session_id   INTEGER NOT NULL,
+    question_id  INTEGER NOT NULL,
+    xml          TEXT    NOT NULL,
+    submitted_at TEXT    NOT NULL,
+    PRIMARY KEY (session_id, question_id),
+    FOREIGN KEY (session_id)  REFERENCES sessions(id),
+    FOREIGN KEY (question_id) REFERENCES questions(id)
 );
 
 CREATE TABLE IF NOT EXISTS session_chat (
@@ -56,6 +112,13 @@ CREATE TABLE IF NOT EXISTS session_chat (
     message     TEXT    NOT NULL,
     sent_at     TEXT    NOT NULL,
     FOREIGN KEY (session_id) REFERENCES sessions(id)
+);
+
+-- Lower priority = earlier in the interview. New categories default to 100
+-- so admins can sort the important ones explicitly without re-numbering all.
+CREATE TABLE IF NOT EXISTS category_order (
+    category  TEXT PRIMARY KEY,
+    priority  INTEGER NOT NULL DEFAULT 100
 );
 """
 
@@ -144,12 +207,48 @@ def init():
     if "archived" not in cols:
         conn.execute("ALTER TABLE sessions ADD COLUMN archived INTEGER NOT NULL DEFAULT 0")
 
+    qcols = [r[1] for r in conn.execute("PRAGMA table_info(questions)").fetchall()]
+    if "archived" not in qcols:
+        conn.execute("ALTER TABLE questions ADD COLUMN archived INTEGER NOT NULL DEFAULT 0")
+    if "diagram_xml" not in qcols:
+        conn.execute("ALTER TABLE questions ADD COLUMN diagram_xml TEXT")
+    if "avg_minutes" not in qcols:
+        conn.execute("ALTER TABLE questions ADD COLUMN avg_minutes REAL NOT NULL DEFAULT 0")
+
+    # Backfill avg_minutes for any rows that still sit at 0 — safe to re-run
+    # because it only touches rows the operator hasn't tuned yet.
+    todo = conn.execute(
+        "SELECT id, category, difficulty FROM questions WHERE avg_minutes <= 0"
+    ).fetchall()
+    for row in todo:
+        mins = estimate_minutes(row[1], row[2])
+        conn.execute("UPDATE questions SET avg_minutes=? WHERE id=?", (mins, row[0]))
+
+    # Make sure every category used by a question has a priority row. INSERT OR
+    # IGNORE leaves any priorities the admin already set untouched.
+    conn.executemany(
+        "INSERT OR IGNORE INTO category_order (category, priority) VALUES (?, 100)",
+        [(r[0],) for r in conn.execute(
+            "SELECT DISTINCT category FROM questions"
+        ).fetchall()],
+    )
+
+    rcols = [r[1] for r in conn.execute("PRAGMA table_info(session_responses)").fetchall()]
+    if "skipped" not in rcols:
+        conn.execute("ALTER TABLE session_responses ADD COLUMN skipped INTEGER NOT NULL DEFAULT 0")
+
+    sqcols = [r[1] for r in conn.execute("PRAGMA table_info(session_questions)").fetchall()]
+    if sqcols and "published_at" not in sqcols:
+        conn.execute("ALTER TABLE session_questions ADD COLUMN published_at TEXT")
+
     count = conn.execute("SELECT COUNT(*) FROM questions").fetchone()[0]
     if count == 0:
         for q in QUESTIONS:
             cur = conn.execute(
-                "INSERT INTO questions (text, category, difficulty, weight, order_index) VALUES (?,?,?,?,?)",
-                (q["text"], q["category"], q["difficulty"], q["weight"], q["order_index"]),
+                "INSERT INTO questions (text, category, difficulty, weight, avg_minutes, order_index) "
+                "VALUES (?,?,?,?,?,?)",
+                (q["text"], q["category"], q["difficulty"], q["weight"],
+                 estimate_minutes(q["category"], q["difficulty"]), q["order_index"]),
             )
             qid = cur.lastrowid
             for text, quality, score in q["answers"]:

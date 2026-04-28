@@ -56,16 +56,46 @@ A self-hosted interview management tool built with Flask and SQLite. Run structu
 
 ```
 interview-questions/
-├── app.py                  # Flask application — all routes and API endpoints
-├── init_db.py              # Schema creation + sample question seed
-├── add_categories.py       # One-time migration: Tech / Management / HR questions
-├── requirements.txt
-└── templates/
-    ├── user.html           # Candidate screen
-    ├── admin.html          # Interview control panel
-    ├── admin_questions.html# Question bank manager
-    └── admin_sessions.html # Session records and results
+├── app/                    # Application code — Flask app, init scripts, templates
+│   ├── app.py              # Flask routes and API endpoints
+│   ├── config.py           # BASE_URL (default /interview) + DB_PATH defaults
+│   ├── init_db.py          # Schema + 5 hard-coded sample questions
+│   ├── init_db_random.py   # Seed db/interview.db with 15 random questions
+│   ├── init_db_master.py   # Seed db/interview.db with the full master bank
+│   ├── add_categories.py   # One-time migration: Tech / Management / HR
+│   ├── requirements.txt
+│   └── templates/
+│       ├── user.html
+│       ├── admin.html
+│       ├── admin_questions.html
+│       └── admin_sessions.html
+├── db/                     # Runtime state lives here — gitignored
+│   ├── interview.db        # Active SQLite DB
+│   └── master.sql          # (only on hosts deployed with --master/--init-random)
+├── src/                    # Master question bank — gitignored, never deployed wholesale
+│   ├── Book1.xlsx          # Source of truth for question text + ideal answers
+│   ├── import_questions.py # xlsx → master.db with generated distractor answers
+│   ├── export_master_sql.py# master.db → master.sql for shipping to a host
+│   ├── backup_master.sh    # Tarball + checksum the master bank
+│   ├── master.db           # Local master SQLite (regenerated from xlsx)
+│   └── master.sql          # Portable export consumed by the deploy script
+└── deploy.sh               # RHEL/CentOS deploy with --init / --init-random / --master
 ```
+
+`db/` and `src/` are both gitignored. The active DB never lives next to the
+code, and the master bank never leaves the maintainer's machine through git.
+
+### Configuration
+
+`app/config.py` defines two settings, both overridable by env vars:
+
+| Setting   | Default                              | Env var                |
+|-----------|--------------------------------------|------------------------|
+| BASE_URL  | `/interview`                         | `INTERVIEW_BASE_PATH`  |
+| DB_PATH   | `<project-root>/db/interview.db`     | `INTERVIEW_DB`         |
+
+The deploy script sets both at runtime via `systemd` so the same code can
+serve at the root or behind a reverse-proxy sub-path.
 
 ---
 
@@ -88,11 +118,63 @@ interview-questions/
 
 ## Sample questions
 
-15 questions across 6 categories, ordered for the interview as:
+`init_db.py` ships 5 hard-coded sample questions covering Safety, Time
+Management, Interpersonal, Adaptability, and Ethics & Security. They are
+safe to commit and demonstrate the schema + scoring rubric.
 
-1. **Management** (3) — team conflict, schedule recovery, goal-setting
-2. **Tech** (4) — process vs thread, API debugging, REST design, system design at scale
-3. **HR** (3) — handling feedback, 5-year plan, difficult colleagues
-4. Safety, Adaptability, Ethics & Security (5 legacy questions)
+Each question has 5 possible answers covering the full quality spectrum
+(Excellent / Good / Acceptable / Poor / Dangerous mapped to score 4-0).
 
-Each question has 5 possible answers covering the full quality spectrum.
+---
+
+## Master question bank (maintainer workflow)
+
+The real interview questions live in `src/Book1.xlsx`. Three small scripts
+turn the xlsx into something the deploy script can ship:
+
+```bash
+# 1. Pull questions out of the xlsx, generate distractor answers,
+#    write them to src/master.db
+python src/import_questions.py
+
+# 2. Dump master.db to a portable SQL file
+python src/export_master_sql.py
+```
+
+`src/master.sql` is what `deploy.sh --master` and `deploy.sh --init-random`
+consume on the target host. Everything in `src/` is gitignored.
+
+### Backups (do this often)
+
+The master bank is the most valuable artifact in this project — losing it
+means rebuilding every question and ideal answer by hand.
+
+```bash
+bash src/backup_master.sh
+# or to a removable drive:
+BACKUP_DIR=/Volumes/USB/iq-backups bash src/backup_master.sh
+```
+
+The script verifies `master.db`'s integrity, refreshes `master.sql`, and
+writes a timestamped, gzipped tarball (`master.db` + `master.sql` +
+`Book1.xlsx`) plus a SHA-256 checksum into `~/.interview-questions-backups/`
+(or wherever `BACKUP_DIR` points). Old backups are pruned after
+`RETENTION_DAYS` (default 90) but the most recent `KEEP_MIN` (default 5)
+are always retained.
+
+**Treat each archive like a credential** — copy it off-machine, never to
+git or a ticket.
+
+---
+
+## Deploying to a host
+
+```bash
+sudo bash deploy.sh                 # update code, keep existing DB
+sudo bash deploy.sh --init          # 5 hard-coded sample questions
+sudo bash deploy.sh --init-random   # 15 random picks from master.sql
+sudo bash deploy.sh --master        # full master bank from master.sql
+```
+
+Init flags only fire when `interview.db` does not yet exist on the
+target — existing candidate data is never overwritten.

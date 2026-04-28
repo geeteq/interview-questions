@@ -22,21 +22,30 @@ pip install -r requirements.txt
 
 ## 2 — Initialise the database
 
+The DB lives in `db/interview.db` (created on first run). Pick one seed:
+
 ```bash
-python init_db.py
+cd app
+python init_db.py          # 5 hard-coded sample questions
+python init_db_random.py   # 15 random questions from db/master.sql
+python init_db_master.py   # full master bank from db/master.sql
 ```
 
-This creates `interview.db` and seeds it with 15 sample questions across Management, Tech, and HR categories.
+For the random/master variants, copy `src/master.sql` to `db/master.sql`
+first, or run with `INTERVIEW_MASTER_SQL=src/master.sql`.
 
 ---
 
 ## 3 — Start the server
 
 ```bash
+cd app
 python app.py
 ```
 
-The app runs on **http://localhost:5001**.
+The app runs on **http://localhost:5002**. By default `BASE_URL=/interview`
+is injected into rendered links — set `INTERVIEW_BASE_PATH=""` to serve at
+the root for local development.
 
 ---
 

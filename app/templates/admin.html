@@ -102,6 +102,73 @@
   }
   .btn-finish:hover { background: #6d28d9; }
 
+  .btn-skip {
+    background: #1e2130; color: var(--sub); border: 1px solid var(--border);
+    width: 100%; padding: .65rem; font-size: .88rem; margin-top: .5rem;
+  }
+  .btn-skip:hover:not(:disabled) { color: var(--text); border-color: #3d4166; background: #21253a; }
+  .btn-cancel {
+    background: #2a1010; color: #f87171; border: 1px solid #3d1010;
+    width: 100%; padding: .65rem; font-size: .88rem; margin-top: .5rem;
+  }
+  .btn-cancel:hover:not(:disabled) { background: #3a1414; }
+
+  /* ── Preview list ── */
+  #panel-preview { display: none; }
+  #panel-preview.visible { display: block; }
+  .preview-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: .5rem; flex-wrap: wrap; }
+  .preview-hd h3 { font-size: 1rem; font-weight: 700; }
+  .preview-hd p  { font-size: .78rem; color: var(--sub); }
+  .preview-list { display: flex; flex-direction: column; gap: .45rem; margin-bottom: 1.25rem; }
+  .preview-item {
+    display: flex; align-items: center; gap: .75rem;
+    background: #11141d; border: 1px solid var(--border); border-radius: 8px;
+    padding: .65rem .85rem;
+  }
+  .preview-num { font-size: .72rem; font-weight: 800; color: var(--accent-lt); background: #1e2238; border: 1px solid #2d3058; border-radius: 5px; padding: .15rem .45rem; min-width: 1.9rem; text-align: center; }
+  .preview-text { flex: 1; font-size: .88rem; color: var(--text); line-height: 1.45; }
+  .preview-meta { display: flex; gap: .3rem; margin-top: .3rem; flex-wrap: wrap; }
+  .preview-x {
+    flex-shrink: 0; background: #1e2130; color: var(--sub); border: 1px solid var(--border);
+    border-radius: 5px; width: 26px; height: 26px; cursor: pointer; font-size: .85rem;
+    display: flex; align-items: center; justify-content: center; transition: all .15s;
+  }
+  .preview-x:hover { color: #f87171; border-color: #5a2424; background: #2a1010; }
+  .preview-empty { text-align: center; padding: 1.5rem; color: var(--muted); font-size: .85rem; border: 1px dashed var(--border); border-radius: 8px; }
+  .preview-actions { display: flex; gap: .5rem; }
+  .preview-actions .btn { flex: 1; }
+  .preview-budget {
+    display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+    background: #11141d; border: 1px solid var(--border); border-radius: 8px;
+    padding: .55rem .85rem; margin-bottom: .85rem; font-size: .85rem;
+  }
+  .preview-budget .budget-main { color: var(--text); }
+  .preview-budget .budget-main strong { color: var(--accent-lt); font-weight: 700; }
+  .preview-budget .budget-target { color: var(--sub); font-size: .78rem; margin-left: .35rem; }
+  .budget-pill {
+    font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    padding: .25rem .65rem; border-radius: 999px; border: 1px solid transparent;
+  }
+  .budget-pill.ok    { background: #1c2a1c; color: #4ade80; border-color: #1a3a1a; }
+  .budget-pill.tight { background: #2c2510; color: #facc15; border-color: #4a3a1a; }
+  .budget-pill.over  { background: #3a1818; color: #f87171; border-color: #5a2424; }
+  .badge-time {
+    background: #11211e; color: #5eead4; border: 1px solid #1a3a36;
+    font-size: .68rem; font-weight: 700; letter-spacing: .05em; padding: .15rem .5rem; border-radius: 4px;
+  }
+
+  /* ── Diagrams ── */
+  .diagram-section { margin-top: 1.25rem; padding: 1rem; background: #11141d; border: 1px solid var(--border); border-radius: 10px; }
+  .diagram-section h4 { font-size: .72rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--sub); margin-bottom: .6rem; display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; }
+  .diagram-tabs { display: flex; gap: .25rem; margin-bottom: .65rem; }
+  .diagram-tab { font-size: .76rem; font-weight: 600; padding: .3rem .7rem; border-radius: 6px; background: transparent; color: var(--sub); border: 1px solid transparent; cursor: pointer; transition: all .15s; }
+  .diagram-tab:hover  { background: #1e2130; color: var(--text); }
+  .diagram-tab.active { background: #1e2130; color: var(--accent-lt); border-color: var(--border); }
+  .diagram-tab[disabled] { opacity: .4; cursor: not-allowed; }
+  .diagram-frame { width: 100%; height: 380px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+  .diagram-empty { padding: 1.25rem; text-align: center; color: var(--muted); font-size: .82rem; border: 1px dashed var(--border); border-radius: 8px; }
+  .diagram-meta { font-size: .72rem; color: var(--sub); }
+
   /* ── Session info bar ── */
   #session-info {
     display: none;
@@ -168,6 +235,7 @@
   .q-Acceptable { background: #2a2410; color: #fbbf24; border: 1px solid #3d350f; }
   .q-Poor       { background: #2a1a10; color: #f97316; border: 1px solid #3d240f; }
   .q-Dangerous  { background: #2a1010; color: #f87171; border: 1px solid #3d1010; }
+  .q-Skipped    { background: #1e2130; color: var(--muted); border: 1px solid var(--border); }
 
   .points-badge {
     font-size: .68rem; font-weight: 600; color: var(--sub);
@@ -316,9 +384,10 @@
 <div class="header">
   <h1>🎙 Interview</h1>
   <nav class="nav-tabs">
-    <a href="{{ base_path }}/admin"           class="nav-tab active">Interview</a>
-    <a href="{{ base_path }}/admin/questions" class="nav-tab">Questions</a>
-    <a href="{{ base_path }}/admin/sessions"  class="nav-tab">Sessions</a>
+    <a href="{{ base_path }}/admin"            class="nav-tab active">Interview</a>
+    <a href="{{ base_path }}/admin/questions"  class="nav-tab">Questions</a>
+    <a href="{{ base_path }}/admin/categories" class="nav-tab">Category order</a>
+    <a href="{{ base_path }}/admin/sessions"   class="nav-tab">Sessions</a>
   </nav>
   <span class="pill" id="header-status">No Session</span>
 </div>
@@ -340,6 +409,28 @@
       <p style="font-size:.85rem;">Create a new session on the right to begin.</p>
     </div>
 
+    <!-- Session preview (before start) -->
+    <div id="panel-preview" class="card">
+      <div class="preview-hd">
+        <div>
+          <h3 id="preview-title">Preview questions for this session</h3>
+          <p id="preview-sub">Drop any questions you don't want to ask, then start the session.</p>
+        </div>
+      </div>
+      <div id="preview-budget" class="preview-budget">
+        <span class="budget-main">
+          Estimated duration: <strong id="budget-total">—</strong>
+          <span class="budget-target">/ target {{ target_interview_minutes }} min</span>
+        </span>
+        <span id="budget-status" class="budget-pill">—</span>
+      </div>
+      <div id="preview-list" class="preview-list"></div>
+      <div class="preview-actions">
+        <button class="btn btn-ghost"   id="btn-preview-cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-preview-start" style="margin-top:0;">▶ Start Session</button>
+      </div>
+    </div>
+
     <!-- Active question panel -->
     <div id="panel-question" class="card" style="display:none;">
       <div class="progress-row">
@@ -354,6 +445,22 @@
       </div>
       <p class="q-text" id="q-text">—</p>
 
+      <div id="diagram-section" class="diagram-section" style="display:none;">
+        <h4>
+          <span>📐 Drawing board (admin reference)</span>
+          <span class="diagram-meta" id="diagram-meta">—</span>
+        </h4>
+        <p style="font-size:.78rem;color:var(--sub);margin-bottom:.65rem;line-height:1.45;">
+          The candidate is asked to figure out the diagram on their own. Click <strong>Publish</strong>
+          when you want to reveal the base diagram on the candidate's screen as a hint.
+        </p>
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.65rem;">
+          <button class="btn btn-ghost btn-sm" id="diagram-publish-btn">📢 Publish to candidate</button>
+          <span id="diagram-publish-status" style="font-size:.76rem;color:var(--muted);">Not published</span>
+        </div>
+        <iframe class="diagram-frame" id="diagram-frame" src="about:blank"></iframe>
+      </div>
+
       <p class="answers-label">Possible answers — select the one that best matches the candidate's response</p>
       <div class="answer-list" id="answer-list"></div>
 
@@ -364,6 +471,8 @@
 
       <div style="margin-top:1.25rem;" id="nav-buttons">
         <button class="btn btn-next" id="btn-next" disabled>Next Question →</button>
+        <button class="btn btn-skip" id="btn-skip">Skip Question</button>
+        <button class="btn btn-cancel" id="btn-cancel">Cancel interview</button>
       </div>
     </div>
 
@@ -442,6 +551,10 @@
   let activeSessionId   = null;
   let selectedAnswerId  = null;
   let isLastQuestion    = false;
+  let previewCandidate  = "";
+  let previewQuestions  = [];   // [{ id, text, category, difficulty, weight }, …]
+  let diagramQid        = null;
+  let diagramPublishedAt = null;
 
   // ── DOM refs ───────────────────────────────────────────────────────────────
   const el = id => document.getElementById(id);
@@ -469,6 +582,58 @@
   function qualityClass(q) {
     return "q-" + q.replace(/[^a-zA-Z]/g, "");
   }
+
+  // ── Diagrams (drawio viewer via URL hash) ──────────────────────────────────
+  const VIEWER_BASE = "https://viewer.diagrams.net/?lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1&toolbar=1";
+  function setDiagramXml(xml) {
+    el("diagram-frame").src = VIEWER_BASE + "#R" + encodeURIComponent(xml);
+  }
+
+  async function loadDiagramView() {
+    if (!diagramQid) return;
+    try {
+      const r = await fetch(ROOT + `/api/questions/${diagramQid}/diagram`);
+      if (!r.ok) return;
+      const d = await r.json();
+      setDiagramXml(d.xml);
+    } catch (_) {}
+  }
+
+  function renderPublishState() {
+    const btn   = el("diagram-publish-btn");
+    const status = el("diagram-publish-status");
+    if (diagramPublishedAt) {
+      btn.textContent = "🚫 Unpublish";
+      btn.classList.remove("btn-ghost");
+      btn.classList.add("btn-danger");
+      status.textContent = `Visible to candidate · published ${fmtDate(diagramPublishedAt)}`;
+      status.style.color = "#4ade80";
+    } else {
+      btn.textContent = "📢 Publish to candidate";
+      btn.classList.remove("btn-danger");
+      btn.classList.add("btn-ghost");
+      status.textContent = "Not published — candidate cannot see this diagram";
+      status.style.color = "var(--muted)";
+    }
+  }
+
+  el("diagram-publish-btn").addEventListener("click", async () => {
+    if (!activeSessionId || !diagramQid) return;
+    const willPublish = !diagramPublishedAt;
+    el("diagram-publish-btn").disabled = true;
+    try {
+      const res = await api(`/api/sessions/${activeSessionId}/publish-diagram`, {
+        method: "POST",
+        body: JSON.stringify({ question_id: diagramQid, published: willPublish }),
+      });
+      if (res.error) { toast(res.error); return; }
+      diagramPublishedAt = res.published_at;
+      renderPublishState();
+      toast(willPublish ? "Diagram published — candidate now sees the base." : "Diagram hidden from candidate.");
+    } finally {
+      el("diagram-publish-btn").disabled = false;
+    }
+  });
 
   // ── Difficulty label ───────────────────────────────────────────────────────
   const diffLabel = ["", "Basic", "Easy", "Moderate", "Hard", "Expert"];
@@ -502,6 +667,8 @@
     el("btn-next").className   = "btn " + (isLastQuestion ? "btn-finish" : "btn-next");
     // Require an answer for mid-session questions; allow finishing without one
     el("btn-next").disabled = !isLastQuestion;
+    el("btn-skip").textContent = isLastQuestion ? "Skip & Finish" : "Skip Question";
+    el("btn-skip").disabled = false;
 
     const list = el("answer-list");
     list.innerHTML = "";
@@ -531,6 +698,20 @@
     el("panel-no-session").style.display = "none";
     el("panel-question").style.display   = "block";
     el("panel-results").classList.remove("visible");
+
+    // ── Diagram block ──
+    if (q.has_diagram) {
+      diagramQid = q.id;
+      diagramPublishedAt = q.diagram_published_at || null;
+      el("diagram-section").style.display = "block";
+      el("diagram-meta").textContent = "";
+      renderPublishState();
+      loadDiagramView();
+    } else {
+      diagramQid = null;
+      diagramPublishedAt = null;
+      el("diagram-section").style.display = "none";
+    }
   }
 
   // ── Rejoin an existing active session ─────────────────────────────────────
@@ -548,50 +729,165 @@
     chatStart(sid, candidateName);
   }
 
-  // ── Start session ──────────────────────────────────────────────────────────
+  // ── Start session — step 1: show preview ──────────────────────────────────
   el("btn-start").addEventListener("click", async () => {
     const name = el("candidate-input").value.trim();
     if (!name) { toast("Enter a candidate name first."); return; }
 
     el("btn-start").disabled = true;
-    el("btn-start").textContent = "Starting…";
+    el("btn-start").textContent = "Loading…";
 
-    const data = await api("/api/sessions", {
-      method: "POST",
-      body: JSON.stringify({ candidate_name: name }),
+    try {
+      const qs = await api("/api/questions?archived=0");
+      if (!qs.length) { toast("No questions available — add some first."); return; }
+
+      previewCandidate = name;
+      previewQuestions = qs.map(q => ({
+        id: q.id, text: q.text, category: q.category,
+        difficulty: q.difficulty, weight: q.weight,
+        avg_minutes: q.avg_minutes,
+      }));
+      showPreview();
+    } finally {
+      el("btn-start").disabled    = false;
+      el("btn-start").textContent = "▶ Start Session";
+    }
+  });
+
+  function showPreview() {
+    el("panel-no-session").style.display = "none";
+    el("panel-question").style.display   = "none";
+    el("panel-results").classList.remove("visible");
+    el("panel-preview").classList.add("visible");
+    el("header-status").textContent = `Preview · ${previewCandidate}`;
+    renderPreview();
+  }
+
+  function hidePreview() {
+    el("panel-preview").classList.remove("visible");
+    previewCandidate = "";
+    previewQuestions = [];
+    if (activeSessionId) {
+      el("panel-question").style.display = "block";
+      const nameEl = el("si-name");
+      el("header-status").textContent = `Active · ${nameEl.textContent}`;
+    } else {
+      el("panel-no-session").style.display = "block";
+      el("header-status").textContent = "No Session";
+    }
+  }
+
+  const TARGET_MINUTES = {{ target_interview_minutes }};
+
+  function renderPreview() {
+    const list = el("preview-list");
+    el("preview-sub").textContent =
+      `Candidate: ${previewCandidate}  ·  ${previewQuestions.length} question${previewQuestions.length !== 1 ? "s" : ""}`;
+
+    // Estimated total duration vs. target.
+    const totalMin = previewQuestions.reduce((s, q) => s + (q.avg_minutes || 0), 0);
+    el("budget-total").textContent = totalMin ? `${totalMin.toFixed(1)} min` : "— min";
+    const pill = el("budget-status");
+    pill.classList.remove("ok", "tight", "over");
+    if (!previewQuestions.length) {
+      pill.textContent = "—";
+    } else if (totalMin > TARGET_MINUTES) {
+      pill.textContent = `+${(totalMin - TARGET_MINUTES).toFixed(1)} over`;
+      pill.classList.add("over");
+    } else if (totalMin > TARGET_MINUTES * 0.9) {
+      pill.textContent = `${(TARGET_MINUTES - totalMin).toFixed(1)} left`;
+      pill.classList.add("tight");
+    } else {
+      pill.textContent = `${(TARGET_MINUTES - totalMin).toFixed(1)} min headroom`;
+      pill.classList.add("ok");
+    }
+
+    if (!previewQuestions.length) {
+      list.innerHTML = `<div class="preview-empty">No questions left — add at least one before starting.</div>`;
+      el("btn-preview-start").disabled = true;
+      return;
+    }
+    el("btn-preview-start").disabled = false;
+    list.innerHTML = previewQuestions.map((q, i) => `
+      <div class="preview-item">
+        <span class="preview-num">${String(i+1).padStart(2,"0")}</span>
+        <div style="flex:1;min-width:0;">
+          <div class="preview-text">${escHtml(q.text)}</div>
+          <div class="preview-meta">
+            <span class="badge badge-cat">${escHtml(q.category)}</span>
+            <span class="badge badge-diff">${diffLabel[q.difficulty] || q.difficulty}</span>
+            <span class="badge badge-weight">×${q.weight}</span>
+            <span class="badge badge-time">⏱ ${(q.avg_minutes || 0).toFixed(1)} min</span>
+          </div>
+        </div>
+        <button class="preview-x" data-remove="${q.id}" title="Remove from session">✕</button>
+      </div>`).join("");
+    list.querySelectorAll("[data-remove]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = +btn.dataset.remove;
+        previewQuestions = previewQuestions.filter(q => q.id !== id);
+        renderPreview();
+      });
     });
+  }
 
-    activeSessionId = data.session_id;
-    el("si-name").textContent = name;
-    el("si-id").textContent   = `#${activeSessionId}`;
-    el("session-info").style.display = "flex";
-    el("header-status").textContent  = `Active · ${name}`;
-    el("candidate-input").value      = "";
-    el("btn-start").disabled         = false;
-    el("btn-start").textContent      = "▶ Start Session";
+  el("btn-preview-cancel").addEventListener("click", hidePreview);
 
-    toast(`Session started for ${name}`);
-    await loadQuestion(activeSessionId);
-    loadPastSessions();
-    chatStart(activeSessionId, name);
+  // ── Start session — step 2: confirm preview & create ──────────────────────
+  el("btn-preview-start").addEventListener("click", async () => {
+    if (!previewQuestions.length) return;
+    const name = previewCandidate;
+    const qids = previewQuestions.map(q => q.id);
+
+    el("btn-preview-start").disabled = true;
+    el("btn-preview-start").textContent = "Starting…";
+
+    try {
+      const data = await api("/api/sessions", {
+        method: "POST",
+        body: JSON.stringify({ candidate_name: name, question_ids: qids }),
+      });
+      if (data.error) { toast(data.error); return; }
+
+      activeSessionId = data.session_id;
+      el("si-name").textContent = name;
+      el("si-id").textContent   = `#${activeSessionId}`;
+      el("session-info").style.display = "flex";
+      el("header-status").textContent  = `Active · ${name}`;
+      el("candidate-input").value      = "";
+
+      el("panel-preview").classList.remove("visible");
+      previewCandidate = "";
+      previewQuestions = [];
+
+      toast(`Session started for ${name}`);
+      await loadQuestion(activeSessionId);
+      loadPastSessions();
+      chatStart(activeSessionId, name);
+    } finally {
+      el("btn-preview-start").disabled = false;
+      el("btn-preview-start").textContent = "▶ Start Session";
+    }
   });
 
   // ── Next / Finish ──────────────────────────────────────────────────────────
-  el("btn-next").addEventListener("click", async () => {
+  async function advance(skip) {
     if (!activeSessionId) return;
 
-    const sid      = activeSessionId;   // capture before any async mutation
+    const sid       = activeSessionId;   // capture before any async mutation
     const finishing = isLastQuestion;
 
     el("btn-next").disabled    = true;
-    el("btn-next").textContent = finishing ? "Finishing…" : "Saving…";
+    el("btn-skip").disabled    = true;
+    el("btn-next").textContent = finishing ? (skip ? "Finishing…" : "Finishing…") : "Saving…";
 
     try {
       await api(`/api/sessions/${sid}/next`, {
         method: "POST",
         body: JSON.stringify({
-          answer_id: selectedAnswerId,
+          answer_id: skip ? null : selectedAnswerId,
           comment:   el("admin-comment").value.trim(),
+          skip:      !!skip,
         }),
       });
 
@@ -603,9 +899,59 @@
     } catch (err) {
       toast("Error saving response — please try again.");
       el("btn-next").disabled    = false;
+      el("btn-skip").disabled    = false;
       el("btn-next").textContent = finishing ? "Finish Interview ✓" : "Next Question →";
     }
+  }
+
+  el("btn-next").addEventListener("click", () => advance(false));
+  el("btn-skip").addEventListener("click", () => advance(true));
+
+  // ── Cancel mid-interview ─────────────────────────────────────────────────
+  // Saves whatever responses are already recorded, marks the session
+  // complete, and resets the admin UI back to the create-new-interview state.
+  el("btn-cancel").addEventListener("click", async () => {
+    if (!activeSessionId) return;
+    if (!confirm("Cancel this interview now? Already-saved answers will be kept on the Sessions page.")) return;
+
+    const sid = activeSessionId;
+    el("btn-cancel").disabled  = true;
+    el("btn-next").disabled    = true;
+    el("btn-skip").disabled    = true;
+
+    try {
+      await api(`/api/sessions/${sid}/cancel`, { method: "POST" });
+      toast("Interview cancelled.");
+      resetToNewInterview();
+      loadPastSessions();
+    } catch (e) {
+      toast(e.message, true);
+      el("btn-cancel").disabled = false;
+      el("btn-next").disabled   = false;
+      el("btn-skip").disabled   = false;
+    }
   });
+
+  function resetToNewInterview() {
+    activeSessionId    = null;
+    selectedAnswerId   = null;
+    isLastQuestion     = false;
+    chatStop && chatStop();
+
+    el("session-info").style.display     = "none";
+    el("panel-question").style.display   = "none";
+    el("panel-results").classList.remove("visible");
+    el("panel-preview").classList.remove("visible");
+    el("panel-no-session").style.display = "block";
+    el("header-status").textContent      = "No Session";
+    el("admin-comment").value            = "";
+    el("candidate-input").value          = "";
+    el("btn-cancel").disabled            = false;
+    el("btn-next").disabled              = true;
+    el("btn-skip").disabled              = false;
+    el("btn-next").textContent           = "Next Question →";
+    el("candidate-input").focus();
+  }
 
   // ── Show results ───────────────────────────────────────────────────────────
   async function showResults(sid) {
@@ -623,15 +969,20 @@
     tbody.innerHTML = "";
     data.responses.forEach(r => {
       const tr = document.createElement("tr");
+      const scoreCell = r.skipped
+        ? `<span style="color:var(--muted);font-style:italic;">not counted</span>`
+        : `${r.score_earned} / ${r.max_points}`;
       tr.innerHTML = `
         <td class="q-col">${escHtml(r.question)}</td>
         <td><span class="quality-badge ${qualityClass(r.quality)}">${r.quality}</span></td>
-        <td class="score-col">${r.score_earned} / ${r.max_points}</td>
+        <td class="score-col">${scoreCell}</td>
         <td class="comment-text">${r.comment ? escHtml(r.comment) : "—"}</td>`;
       tbody.appendChild(tr);
     });
 
     activeSessionId = null;
+    diagramQid = null;
+    diagramPublishedAt = null;
     chatStop();
     loadPastSessions();
   }

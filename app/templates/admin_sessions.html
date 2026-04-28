@@ -109,6 +109,7 @@
   .q-Adequate, .q-Acceptable   { background: #2a2410; color: #fbbf24; border: 1px solid #3d350f; }
   .q-Weak, .q-Poor             { background: #2a1a10; color: #f97316; border: 1px solid #3d240f; }
   .q-Dangerous                 { background: #2a1010; color: #f87171; border: 1px solid #3d1010; }
+  .q-Skipped                   { background: #1e2130; color: var(--muted); border: 1px solid var(--border); }
 
   .chevron { transition: transform .2s; display: inline-block; font-size: .7rem; color: var(--muted); }
   tr.open .chevron { transform: rotate(180deg); }
@@ -128,6 +129,31 @@
   .sub-tab .count { display: inline-block; margin-left: .35rem; font-size: .72rem; padding: .05rem .4rem; border-radius: 999px; background: #11141d; color: var(--muted); }
   .sub-tab.active .count { color: var(--accent-lt); }
 
+  /* ── Diagram modal ── */
+  .diagram-link { font-size: .72rem; font-weight: 600; color: #a78bfa; background: #1e1e36; border: 1px solid #2e2c5a; padding: .15rem .5rem; border-radius: 5px; cursor: pointer; transition: all .15s; display: inline-block; }
+  .diagram-link:hover { background: #28284a; color: #c4b5fd; }
+  .diagram-link[disabled] { opacity: .4; cursor: not-allowed; }
+  #diagram-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7); display: none;
+    align-items: center; justify-content: center; z-index: 1000;
+  }
+  #diagram-modal.visible { display: flex; }
+  .diagram-modal-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    width: min(1100px, 95vw); height: min(720px, 92vh);
+    display: flex; flex-direction: column;
+  }
+  .diagram-modal-hd { display: flex; justify-content: space-between; align-items: center; padding: .85rem 1.25rem; border-bottom: 1px solid var(--border); gap: .75rem; flex-wrap: wrap; }
+  .diagram-modal-title { font-size: .9rem; font-weight: 700; color: var(--accent-lt); }
+  .diagram-modal-tabs { display: flex; gap: .25rem; }
+  .diagram-modal-tab { font-size: .76rem; font-weight: 600; padding: .3rem .7rem; border-radius: 6px; background: transparent; color: var(--sub); border: 1px solid transparent; cursor: pointer; }
+  .diagram-modal-tab:hover  { background: #1e2130; color: var(--text); }
+  .diagram-modal-tab.active { background: #1e2130; color: var(--accent-lt); border-color: var(--border); }
+  .diagram-modal-tab[disabled] { opacity: .4; cursor: not-allowed; }
+  .diagram-modal-close { background: none; border: none; color: var(--muted); font-size: 1.05rem; cursor: pointer; padding: .25rem .5rem; }
+  .diagram-modal-close:hover { color: var(--text); }
+  .diagram-modal-frame { flex: 1; border: none; background: #fff; border-radius: 0 0 14px 14px; }
+
   /* ── Row actions ── */
   .row-actions { display: flex; gap: .35rem; justify-content: flex-end; }
   .row-btn { font-size: .72rem; font-weight: 600; padding: .25rem .55rem; background: #1e2130; color: var(--sub); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; transition: all .15s; white-space: nowrap; }
@@ -140,9 +166,10 @@
 <div class="header">
   <h1>🎙 Interview</h1>
   <nav class="nav-tabs">
-    <a href="{{ base_path }}/admin"           class="nav-tab">Interview</a>
-    <a href="{{ base_path }}/admin/questions" class="nav-tab">Questions</a>
-    <a href="{{ base_path }}/admin/sessions"  class="nav-tab active">Sessions</a>
+    <a href="{{ base_path }}/admin"            class="nav-tab">Interview</a>
+    <a href="{{ base_path }}/admin/questions"  class="nav-tab">Questions</a>
+    <a href="{{ base_path }}/admin/categories" class="nav-tab">Category order</a>
+    <a href="{{ base_path }}/admin/sessions"   class="nav-tab active">Sessions</a>
   </nav>
 </div>
 
@@ -187,6 +214,17 @@
     <button class="sub-tab" data-view="archived" onclick="switchView('archived')">
       Archived <span class="count" id="count-archived">—</span>
     </button>
+  </div>
+
+  <!-- Diagram modal -->
+  <div id="diagram-modal">
+    <div class="diagram-modal-card">
+      <div class="diagram-modal-hd">
+        <span class="diagram-modal-title" id="diagram-modal-title">📐 Base diagram</span>
+        <button class="diagram-modal-close" id="diagram-modal-close" title="Close">✕</button>
+      </div>
+      <iframe class="diagram-modal-frame" id="diagram-modal-frame" src="about:blank"></iframe>
+    </div>
   </div>
 
   <!-- Sessions table -->
@@ -423,15 +461,25 @@
     const r = resultsCache[sid];
     if (!r) return '<span style="color:var(--sub)">No results available.</span>';
 
-    const rows = r.responses.map(resp => `
+    const rows = r.responses.map(resp => {
+      const score = resp.skipped
+        ? `<span style="color:var(--muted);font-style:italic;">not counted</span>`
+        : `${resp.score_earned} / ${resp.max_points}`;
+      const diagramLinks = resp.has_diagram
+        ? `<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.4rem;">
+             <span class="diagram-link" data-open-diagram="base" data-sid="${sid}" data-qid="${resp.question_id}">📐 View base diagram</span>
+           </div>`
+        : "";
+      return `
 <tr>
-  <td class="col-q">${esc(resp.question)}</td>
+  <td class="col-q">${esc(resp.question)}${diagramLinks}</td>
   <td>${qualBadge(resp.category)} <span style="color:var(--sub);font-size:.75rem;">diff ${resp.difficulty}</span></td>
   <td class="col-ans">${esc(resp.answer)}</td>
   <td>${qualBadge(resp.quality)}</td>
-  <td class="col-score">${resp.score_earned} / ${resp.max_points}</td>
+  <td class="col-score">${score}</td>
   <td class="col-comment">${resp.comment ? esc(resp.comment) : '—'}</td>
-</tr>`).join("");
+</tr>`;
+    }).join("");
 
     return `
 <div class="detail-header">
@@ -500,6 +548,36 @@ ${renderChatLog(r.chat)}
     renderTable();
     window.scrollTo(0, scrollY);
   }
+
+  // ── Diagram modal (drawio viewer via URL hash) ─────────────────────────────
+  const VIEWER_BASE = "https://viewer.diagrams.net/?lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1&toolbar=1";
+
+  async function openDiagramModal(qid) {
+    document.getElementById("diagram-modal").classList.add("visible");
+    try {
+      const r = await fetch(ROOT + `/api/questions/${qid}/diagram`);
+      if (!r.ok) return;
+      const d = await r.json();
+      document.getElementById("diagram-modal-frame").src = VIEWER_BASE + "#R" + encodeURIComponent(d.xml);
+    } catch (_) {}
+  }
+
+  document.getElementById("diagram-modal-close").addEventListener("click", () => {
+    document.getElementById("diagram-modal").classList.remove("visible");
+  });
+  document.getElementById("diagram-modal").addEventListener("click", (e) => {
+    if (e.target.id === "diagram-modal") {
+      document.getElementById("diagram-modal").classList.remove("visible");
+    }
+  });
+
+  // Delegate clicks on the "View base diagram" link in detail rows
+  document.addEventListener("click", (e) => {
+    const link = e.target.closest("[data-open-diagram]");
+    if (!link || link.hasAttribute("disabled")) return;
+    e.stopPropagation();
+    openDiagramModal(+link.dataset.qid);
+  });
 
   // ── Boot ───────────────────────────────────────────────────────────────────
   load();

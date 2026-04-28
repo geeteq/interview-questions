@@ -89,12 +89,13 @@
   .order-num { font-size: .75rem; font-weight: 800; color: var(--accent-lt); background: #1e2238; border: 1px solid #2d3058; border-radius: 6px; padding: .2rem .5rem; white-space: nowrap; min-width: 2rem; text-align: center; }
   .reorder-btns { display: flex; flex-direction: column; gap: 2px; }
   .q-main { flex: 1; min-width: 0; }
-  .q-text-preview { font-size: .9rem; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: .35rem; }
+  .q-text-preview { font-size: .9rem; font-weight: 500; color: var(--text); line-height: 1.45; word-break: break-word; margin-bottom: .35rem; }
   .q-badges { display: flex; gap: .35rem; flex-wrap: wrap; }
   .badge { font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: .18rem .55rem; border-radius: 5px; }
   .badge-cat    { background: #1e2d48; color: #60a5fa; border: 1px solid #1e3a5f; }
   .badge-diff   { background: #201e36; color: #a78bfa; border: 1px solid #312e6b; }
   .badge-weight { background: #1c2a1c; color: #4ade80; border: 1px solid #1a3a1a; }
+  .badge-time   { background: #11211e; color: #5eead4; border: 1px solid #1a3a36; }
   .badge-ans    { background: #1e2130; color: var(--sub); border: 1px solid var(--border); }
   .q-actions { display: flex; gap: .4rem; align-items: center; flex-shrink: 0; }
   .chevron { font-size: .7rem; color: var(--muted); transition: transform .2s; }
@@ -128,6 +129,15 @@
   .add-answer-form input:focus { border-color: var(--accent); }
   .add-answer-form select { padding: .45rem .65rem; background: #1a1f2e; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: .85rem; outline: none; cursor: pointer; }
 
+  /* ── Diagram panel ── */
+  .diagram-panel { background: #11141d; border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem; margin-bottom: 1.25rem; }
+  .diagram-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: .75rem; gap: .75rem; flex-wrap: wrap; }
+  .diagram-hd h4 { font-size: .78rem; font-weight: 700; color: var(--sub); letter-spacing: .05em; text-transform: uppercase; }
+  .diagram-hd .actions { display: flex; gap: .4rem; align-items: center; }
+  .diagram-frame { width: 100%; height: 380px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+  .diagram-empty { padding: 1.5rem; text-align: center; color: var(--muted); font-size: .85rem; border: 1px dashed var(--border); border-radius: 8px; }
+  .diagram-badge { font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: .18rem .55rem; border-radius: 5px; background: #1e1e36; color: #a78bfa; border: 1px solid #2e2c5a; }
+
   /* ── Quality colours ── */
   .q-Excellent  { background: #14291a; color: #4ade80; border: 1px solid #1a4024; }
   .q-Good       { background: #1a2535; color: #60a5fa; border: 1px solid #1e3050; }
@@ -138,6 +148,14 @@
   /* ── Empty state ── */
   .empty { text-align: center; padding: 3rem; color: var(--sub); }
   .empty p { margin-top: .5rem; font-size: .85rem; }
+
+  /* ── Sub-tabs (Active / Archived) ── */
+  .sub-tabs { display: flex; gap: .25rem; margin-bottom: 1rem; }
+  .sub-tab { font-size: .82rem; font-weight: 600; padding: .35rem .85rem; border-radius: 7px; background: transparent; color: var(--sub); border: 1px solid transparent; cursor: pointer; transition: all .15s; }
+  .sub-tab:hover  { background: #1e2130; color: var(--text); }
+  .sub-tab.active { background: #1e2130; color: var(--accent-lt); border-color: var(--border); }
+  .sub-tab .count { display: inline-block; margin-left: .35rem; font-size: .72rem; padding: .05rem .4rem; border-radius: 999px; background: #11141d; color: var(--muted); }
+  .sub-tab.active .count { color: var(--accent-lt); }
 
   /* ── Toast ── */
   #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #1e2a3a; border: 1px solid #2d4060; border-radius: 10px; padding: .7rem 1rem; font-size: .85rem; color: #60a5fa; opacity: 0; transform: translateY(8px); transition: all .25s; pointer-events: none; z-index: 999; }
@@ -150,9 +168,10 @@
 <div class="header">
   <h1>🎙 Interview</h1>
   <nav class="nav-tabs">
-    <a href="{{ base_path }}/admin"           class="nav-tab">Interview</a>
-    <a href="{{ base_path }}/admin/questions" class="nav-tab active">Questions</a>
-    <a href="{{ base_path }}/admin/sessions"  class="nav-tab">Sessions</a>
+    <a href="{{ base_path }}/admin"            class="nav-tab">Interview</a>
+    <a href="{{ base_path }}/admin/questions"  class="nav-tab active">Questions</a>
+    <a href="{{ base_path }}/admin/categories" class="nav-tab">Category order</a>
+    <a href="{{ base_path }}/admin/sessions"   class="nav-tab">Sessions</a>
   </nav>
 </div>
 
@@ -191,11 +210,25 @@
         <label>Weight (score multiplier)</label>
         <input id="nq-weight" type="number" step="0.5" min="0.5" value="1.5" />
       </div>
+      <div class="form-field">
+        <label>Avg time (minutes)</label>
+        <input id="nq-mins" type="number" step="0.5" min="0" placeholder="auto" />
+      </div>
     </div>
     <div class="form-actions">
       <button class="btn btn-primary" id="btn-save-new">Save Question</button>
       <button class="btn btn-ghost"   id="btn-cancel-new">Cancel</button>
     </div>
+  </div>
+
+  <!-- Sub-tabs -->
+  <div class="sub-tabs">
+    <button class="sub-tab active" data-view="active">
+      Active <span class="count" id="count-active">—</span>
+    </button>
+    <button class="sub-tab" data-view="archived">
+      Archived <span class="count" id="count-archived">—</span>
+    </button>
   </div>
 
   <!-- Category filter bar -->
@@ -219,6 +252,8 @@ let questions    = [];
 let answersCache = {};    // { qid: [answer, …] }
 let expandedId   = null;
 let activeCategory = "All";
+let view = "active";        // "active" | "archived"
+let counts = { active: 0, archived: 0 };
 
 const QUALITY_SCORES = { Excellent: 4, Good: 3, Acceptable: 2, Poor: 1, Dangerous: 0 };
 const DIFF_LABELS    = ["", "Basic", "Easy", "Moderate", "Hard", "Expert"];
@@ -251,12 +286,37 @@ function qBadge(quality) {
 
 // ── Load questions ─────────────────────────────────────────────────────────────
 async function load() {
-  questions = await api("/api/questions");
+  const [active, archived] = await Promise.all([
+    api("/api/questions?archived=0"),
+    api("/api/questions?archived=1"),
+  ]);
+  counts.active   = active.length;
+  counts.archived = archived.length;
+  document.getElementById("count-active").textContent   = counts.active;
+  document.getElementById("count-archived").textContent = counts.archived;
+
+  questions = view === "archived" ? archived : active;
+  const label = view === "archived" ? "archived question" : "question";
   document.getElementById("q-count").textContent =
-    `${questions.length} question${questions.length !== 1 ? "s" : ""} · max ${maxScore()} pts total`;
+    `${questions.length} ${label}${questions.length !== 1 ? "s" : ""} · max ${maxScore()} pts total`;
   rebuildCategoryBar();
   render();
 }
+
+function switchView(next) {
+  if (view === next) return;
+  view = next;
+  expandedId = null;
+  activeCategory = "All";
+  document.querySelectorAll(".sub-tab").forEach(b => {
+    b.classList.toggle("active", b.dataset.view === view);
+  });
+  load();
+}
+
+document.querySelectorAll(".sub-tab").forEach(b => {
+  b.addEventListener("click", () => switchView(b.dataset.view));
+});
 
 function maxScore() {
   return questions.reduce((s, q) => s + q.weight * 4, 0).toFixed(1);
@@ -298,25 +358,33 @@ function render() {
 function renderCard(q, i, visibleList) {
   const list  = visibleList || questions;
   const isExp = q.id === expandedId;
+  const reorder = view === "active" ? `
+    <div class="reorder-btns">
+      <button class="btn-icon" data-move-up="${q.id}"   ${i === 0 ? "disabled" : ""} title="Move up">▲</button>
+      <button class="btn-icon" data-move-down="${q.id}" ${i === list.length-1 ? "disabled" : ""} title="Move down">▼</button>
+    </div>` : "";
+  const archiveBtn = view === "active"
+    ? `<button class="btn btn-ghost btn-sm" data-archive-q="${q.id}">Archive</button>`
+    : `<button class="btn btn-ghost btn-sm" data-unarchive-q="${q.id}">Unarchive</button>`;
   return `
 <div class="q-card${isExp ? " expanded" : ""}" data-qid="${q.id}">
   <div class="q-card-header" data-toggle="${q.id}">
     <span class="order-num">${String(i+1).padStart(2,"0")}</span>
-    <div class="reorder-btns">
-      <button class="btn-icon" data-move-up="${q.id}"   ${i === 0 ? "disabled" : ""} title="Move up">▲</button>
-      <button class="btn-icon" data-move-down="${q.id}" ${i === list.length-1 ? "disabled" : ""} title="Move down">▼</button>
-    </div>
+    ${reorder}
     <div class="q-main">
       <div class="q-text-preview">${esc(q.text)}</div>
       <div class="q-badges">
         <span class="badge badge-cat">${esc(q.category)}</span>
         <span class="badge badge-diff">${DIFF_LABELS[q.difficulty] || q.difficulty}</span>
         <span class="badge badge-weight">×${q.weight} weight · max ${(q.weight*4).toFixed(1)} pts</span>
+        <span class="badge badge-time">⏱ ${(q.avg_minutes || 0).toFixed(1)} min</span>
         <span class="badge badge-ans">${q.answer_count} answer${q.answer_count !== 1 ? "s" : ""}</span>
+        ${q.has_diagram ? `<span class="diagram-badge">📐 Drawing</span>` : ""}
       </div>
     </div>
     <div class="q-actions" onclick="event.stopPropagation()">
       <button class="btn btn-ghost btn-sm" data-edit-q="${q.id}">Edit</button>
+      ${archiveBtn}
       <button class="btn btn-danger btn-sm" data-del-q="${q.id}">Delete</button>
     </div>
     <span class="chevron">▼</span>
@@ -345,10 +413,31 @@ function renderCard(q, i, visibleList) {
           <label>Weight</label>
           <input id="eq-weight-${q.id}" type="number" step="0.5" min="0.5" value="${q.weight}" />
         </div>
+        <div class="form-field">
+          <label>Avg time (min)</label>
+          <input id="eq-mins-${q.id}" type="number" step="0.5" min="0" value="${q.avg_minutes || 0}" />
+        </div>
       </div>
       <div class="form-actions">
         <button class="btn btn-primary btn-sm" data-save-q="${q.id}">Save Changes</button>
         <button class="btn btn-ghost   btn-sm" data-cancel-edit="${q.id}">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Diagram section -->
+    <div class="diagram-panel" id="diagram-panel-${q.id}">
+      <div class="diagram-hd">
+        <h4>Base Diagram (draw.io)</h4>
+        <div class="actions">
+          <input type="file" id="dg-file-${q.id}" accept=".drawio,.xml,.svg,application/xml,text/xml" style="display:none" />
+          <button class="btn btn-ghost btn-sm" data-upload-diagram="${q.id}">${q.has_diagram ? "Replace" : "Upload"} .drawio</button>
+          ${q.has_diagram ? `<button class="btn btn-danger btn-sm" data-delete-diagram="${q.id}">Remove</button>` : ""}
+        </div>
+      </div>
+      <div id="diagram-body-${q.id}">
+        ${q.has_diagram
+          ? `<iframe class="diagram-frame" id="dg-frame-${q.id}" src="about:blank"></iframe>`
+          : `<div class="diagram-empty">No base diagram uploaded. Candidates won't see a starting drawing for this question.</div>`}
       </div>
     </div>
 
@@ -400,6 +489,13 @@ function bindCardEvents() {
   document.querySelectorAll("[data-save-q]").forEach(el => {
     el.addEventListener("click", () => saveQuestion(+el.dataset.saveQ));
   });
+  // Archive / unarchive question
+  document.querySelectorAll("[data-archive-q]").forEach(el => {
+    el.addEventListener("click", e => { e.stopPropagation(); setArchived(+el.dataset.archiveQ, true); });
+  });
+  document.querySelectorAll("[data-unarchive-q]").forEach(el => {
+    el.addEventListener("click", e => { e.stopPropagation(); setArchived(+el.dataset.unarchiveQ, false); });
+  });
   // Delete question
   document.querySelectorAll("[data-del-q]").forEach(el => {
     el.addEventListener("click", e => { e.stopPropagation(); deleteQuestion(+el.dataset.delQ); });
@@ -408,6 +504,8 @@ function bindCardEvents() {
   document.querySelectorAll("[data-add-ans]").forEach(el => {
     el.addEventListener("click", () => addAnswer(+el.dataset.addAns));
   });
+  // Diagram actions
+  bindDiagramEvents();
 }
 
 // ── Expand / collapse ──────────────────────────────────────────────────────────
@@ -420,6 +518,66 @@ async function toggleExpand(qid) {
   expandedId = qid;
   render();
   await loadAnswers(qid);
+  loadDiagram(qid);
+}
+
+// ── Diagram upload / preview ─────────────────────────────────────────────────
+const VIEWER_BASE = "https://viewer.diagrams.net/?lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1&toolbar=1";
+
+async function loadDiagram(qid) {
+  const q = questions.find(x => x.id === qid);
+  if (!q || !q.has_diagram) return;
+  const frame = document.getElementById(`dg-frame-${qid}`);
+  if (!frame) return;
+  try {
+    const r = await fetch(ROOT + `/api/questions/${qid}/diagram`);
+    if (!r.ok) return;
+    const d = await r.json();
+    frame.src = VIEWER_BASE + "#R" + encodeURIComponent(d.xml);
+  } catch (e) { /* noop */ }
+}
+
+function bindDiagramEvents() {
+  document.querySelectorAll("[data-upload-diagram]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const qid = +btn.dataset.uploadDiagram;
+      document.getElementById(`dg-file-${qid}`).click();
+    });
+  });
+  document.querySelectorAll("[id^='dg-file-']").forEach(input => {
+    input.addEventListener("change", async (e) => {
+      const qid = +input.id.replace("dg-file-", "");
+      const file = e.target.files[0];
+      if (!file) return;
+      const xml = await file.text();
+      try {
+        await api(`/api/questions/${qid}/diagram`, {
+          method: "POST",
+          body: JSON.stringify({ xml }),
+        });
+        toast("Diagram uploaded.");
+        await load();
+        expandedId = qid;
+        render();
+        loadAnswers(qid);
+        loadDiagram(qid);
+      } catch (err) { toast(err.message, true); }
+    });
+  });
+  document.querySelectorAll("[data-delete-diagram]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const qid = +btn.dataset.deleteDiagram;
+      if (!confirm("Remove the base diagram for this question?")) return;
+      try {
+        await api(`/api/questions/${qid}/diagram`, { method: "DELETE" });
+        toast("Diagram removed.");
+        await load();
+        expandedId = qid;
+        render();
+        loadAnswers(qid);
+      } catch (err) { toast(err.message, true); }
+    });
+  });
 }
 
 // ── Load + render answers ──────────────────────────────────────────────────────
@@ -508,10 +666,11 @@ async function saveQuestion(qid) {
     await api(`/api/questions/${qid}`, {
       method: "PUT",
       body: JSON.stringify({
-        text:       document.getElementById(`eq-text-${qid}`).value.trim(),
-        category:   document.getElementById(`eq-cat-${qid}`).value.trim(),
-        difficulty: document.getElementById(`eq-diff-${qid}`).value,
-        weight:     document.getElementById(`eq-weight-${qid}`).value,
+        text:        document.getElementById(`eq-text-${qid}`).value.trim(),
+        category:    document.getElementById(`eq-cat-${qid}`).value.trim(),
+        difficulty:  document.getElementById(`eq-diff-${qid}`).value,
+        weight:      document.getElementById(`eq-weight-${qid}`).value,
+        avg_minutes: document.getElementById(`eq-mins-${qid}`).value,
       }),
     });
     toast("Question saved.");
@@ -519,6 +678,18 @@ async function saveQuestion(qid) {
     expandedId = qid;
     render();
     loadAnswers(qid);
+  } catch(e) { toast(e.message, true); }
+}
+
+async function setArchived(qid, archived) {
+  try {
+    await api(`/api/questions/${qid}/archive`, {
+      method: "POST",
+      body: JSON.stringify({ archived }),
+    });
+    if (expandedId === qid) expandedId = null;
+    toast(archived ? "Question archived." : "Question unarchived.");
+    await load();
   } catch(e) { toast(e.message, true); }
 }
 
@@ -615,14 +786,16 @@ document.getElementById("btn-save-new").addEventListener("click", async () => {
   const cat    = document.getElementById("nq-cat").value.trim();
   const diff   = document.getElementById("nq-diff").value;
   const weight = document.getElementById("nq-weight").value;
+  const mins   = document.getElementById("nq-mins").value;
   if (!text || !cat) { toast("Question text and category are required.", true); return; }
   try {
     const { id } = await api("/api/questions", {
       method: "POST",
-      body: JSON.stringify({ text, category: cat, difficulty: diff, weight }),
+      body: JSON.stringify({ text, category: cat, difficulty: diff, weight, avg_minutes: mins }),
     });
     document.getElementById("nq-text").value = "";
     document.getElementById("nq-cat").value  = "";
+    document.getElementById("nq-mins").value = "";
     document.getElementById("add-panel").style.display = "none";
     toast("Question created. Add answers by expanding it below.");
     expandedId = id;

@@ -4,8 +4,30 @@
 # Apache reverse-proxies http://SERVER/interview/ → Gunicorn on 127.0.0.1:PORT
 # SSL is handled upstream — this script configures HTTP only on the internal endpoint.
 #
-# Usage: sudo bash deploy.sh
+# Usage:
+#   sudo bash deploy.sh                # update code, keep existing DB
+#   sudo bash deploy.sh --init         # init DB with the 5 hard-coded sample questions
+#   sudo bash deploy.sh --init-random  # init DB with 15 random questions from src/master.sql
+#   sudo bash deploy.sh --master       # init DB with the full master bank from src/master.sql
+#
+# --init / --init-random / --master only take effect when interview.db does not
+# yet exist on the target host (or has no questions). Existing data is never
+# overwritten.
 set -euo pipefail
+
+INIT_MODE="auto"   # auto | init | init-random | master
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --init)         INIT_MODE="init"        ; shift ;;
+    --init-random)  INIT_MODE="init-random" ; shift ;;
+    --master)       INIT_MODE="master"      ; shift ;;
+    -h|--help)
+      sed -n '2,12p' "$0"
+      exit 0
+      ;;
+    *) echo "Unknown flag: $1" >&2 ; exit 2 ;;
+  esac
+done
 
 # ── Colours ────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -40,9 +62,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_USER="interview"
 APP_HOME="/home/interview"
 APP_DIR="$APP_HOME/interview-questions"
+APP_CODE="$APP_DIR/app"
+DB_DIR="$APP_DIR/db"
 LOG_DIR="$APP_HOME/logs"
 VENV="$APP_DIR/venv"
-DB="$APP_DIR/interview.db"
+DB="$DB_DIR/interview.db"
 
 # ── Root check ─────────────────────────────────────────────────────────────────
 [[ $EUID -ne 0 ]] && die "Run as root: sudo bash deploy.sh"
@@ -173,10 +197,25 @@ rsync -a --delete \
   --exclude='*.db' \
   --exclude='*.db-shm' \
   --exclude='*.db-wal' \
+  --exclude='src/' \
   "$SCRIPT_DIR/" "$APP_DIR/"
 
+mkdir -p "$DB_DIR"
+
+# The src/ dir holds the master question bank. Only ship master.sql when
+# the operator asked for it — and never the xlsx, the master DB, or the
+# import scripts.
+if [[ "$INIT_MODE" == "master" || "$INIT_MODE" == "init-random" ]]; then
+  if [[ -f "$SCRIPT_DIR/src/master.sql" ]]; then
+    cp "$SCRIPT_DIR/src/master.sql" "$DB_DIR/master.sql"
+    ok "Copied master.sql to $DB_DIR (mode: $INIT_MODE)"
+  else
+    die "$INIT_MODE requested but $SCRIPT_DIR/src/master.sql is missing — run src/export_master_sql.py first."
+  fi
+fi
+
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
-ok "Code synced to $APP_DIR"
+ok "Code synced to $APP_CODE, DB dir at $DB_DIR"
 
 # ── 4 — Python environment ─────────────────────────────────────────────────────
 header "4/7 — Python environment"
@@ -191,7 +230,7 @@ fi
 
 info "Installing Python dependencies…"
 as_interview "$VENV/bin/pip" install --quiet --upgrade pip
-as_interview "$VENV/bin/pip" install --quiet -r "$APP_DIR/requirements.txt"
+as_interview "$VENV/bin/pip" install --quiet -r "$APP_CODE/requirements.txt"
 ok "Dependencies installed"
 
 # ── 5 — Database ───────────────────────────────────────────────────────────────
@@ -200,9 +239,23 @@ header "5/7 — Database"
 if [[ -f "$DB" ]]; then
   warn "Database already exists — skipping init (data preserved)"
 else
-  info "Initialising database…"
-  (cd "$APP_DIR" && as_interview "$VENV/bin/python" init_db.py)
-  ok "Database initialised with sample questions"
+  case "$INIT_MODE" in
+    master)
+      info "Loading full master question bank from master.sql…"
+      (cd "$APP_CODE" && as_interview "$VENV/bin/python" init_db_master.py)
+      ok "Database initialised from master bank"
+      ;;
+    init-random)
+      info "Picking 15 random questions from master.sql…"
+      (cd "$APP_CODE" && as_interview "$VENV/bin/python" init_db_random.py)
+      ok "Database initialised with 15 random questions"
+      ;;
+    init|auto)
+      info "Initialising database with built-in sample questions…"
+      (cd "$APP_CODE" && as_interview "$VENV/bin/python" init_db.py)
+      ok "Database initialised with sample questions"
+      ;;
+  esac
 fi
 
 as_interview mkdir -p "$LOG_DIR"
@@ -222,10 +275,10 @@ After=network.target
 [Service]
 User=${APP_USER}
 Group=${APP_USER}
-WorkingDirectory=${APP_DIR}
+WorkingDirectory=${APP_CODE}
 Environment="PATH=${VENV}/bin"
 Environment="INTERVIEW_BASE_PATH=${APP_SUBPATH}"
-ExecStartPre=${VENV}/bin/python init_db.py
+ExecStartPre=${VENV}/bin/python ${APP_CODE}/init_db.py
 ExecStart=${VENV}/bin/gunicorn \\
     --workers ${WORKER_COUNT} \\
     --bind 127.0.0.1:${APP_PORT} \\
@@ -266,9 +319,10 @@ cat > "$APACHE_CONF" <<EOF
 ProxyPreserveHost On
 RequestHeader set X-Forwarded-Proto "https"
 
-# Pages
-ProxyPass        ${APP_SUBPATH}  http://127.0.0.1:${APP_PORT}
-ProxyPassReverse ${APP_SUBPATH}  http://127.0.0.1:${APP_PORT}
+# The Flask app self-mounts under ${APP_SUBPATH} (see config.py BASE_URL),
+# so we preserve the path prefix when proxying — do NOT strip it.
+ProxyPass        ${APP_SUBPATH}/  http://127.0.0.1:${APP_PORT}${APP_SUBPATH}/
+ProxyPassReverse ${APP_SUBPATH}/  http://127.0.0.1:${APP_PORT}${APP_SUBPATH}/
 
 # Trailing-slash redirect so /interview → /interview/
 RedirectMatch ^${APP_SUBPATH}$  ${APP_SUBPATH}/
@@ -308,7 +362,8 @@ echo ""
 echo -e "${BOLD}${GREEN}  ✔ Deployment complete!${RESET}"
 echo ""
 echo -e "${BOLD}  File layout${RESET}"
-echo "    App      : ${APP_DIR}"
+echo "    Project  : ${APP_DIR}"
+echo "    App code : ${APP_CODE}"
 echo "    Database : ${DB}"
 echo "    Logs     : ${LOG_DIR}"
 echo "    Venv     : ${VENV}"
