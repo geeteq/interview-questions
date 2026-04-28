@@ -112,21 +112,28 @@
   /* ── Answers section ── */
   .answers-hd { font-size: .72rem; font-weight: 700; color: var(--sub); letter-spacing: .06em; text-transform: uppercase; margin-bottom: .6rem; display: flex; justify-content: space-between; align-items: center; }
   .answer-rows { display: flex; flex-direction: column; gap: .4rem; margin-bottom: .75rem; }
-  .answer-row { display: flex; align-items: center; gap: .6rem; background: #11141d; border: 1px solid var(--border); border-radius: 8px; padding: .6rem .85rem; }
+  /* Grid columns line up across every answer row: quality | text | pts | actions */
+  .answer-row { display: grid; grid-template-columns: 110px 1fr 70px auto; align-items: center; gap: .6rem; background: #11141d; border: 1px solid var(--border); border-radius: 8px; padding: .6rem .85rem; }
   .answer-row.editing { border-color: var(--accent); }
-  .a-quality { flex-shrink: 0; }
-  .a-text { flex: 1; font-size: .85rem; color: var(--text); line-height: 1.4; }
-  .a-pts   { font-size: .75rem; color: var(--sub); white-space: nowrap; flex-shrink: 0; }
-  .a-actions { display: flex; gap: .3rem; flex-shrink: 0; }
+  .a-quality { justify-self: start; }
+  .a-text { font-size: .85rem; color: var(--text); line-height: 1.4; min-width: 0; white-space: pre-wrap; word-break: break-word; }
+  .a-pts   { font-size: .75rem; color: var(--sub); white-space: nowrap; text-align: right; }
+  .a-actions { display: flex; gap: .3rem; }
   .answer-edit-inline { display: flex; gap: .5rem; align-items: flex-start; flex-wrap: wrap; width: 100%; }
-  .answer-edit-inline input { flex: 1; min-width: 180px; padding: .4rem .65rem; background: #1a1f2e; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: .85rem; outline: none; }
-  .answer-edit-inline input:focus { border-color: var(--accent); }
+  .answer-edit-inline input,
+  .answer-edit-inline textarea { flex: 1; min-width: 180px; padding: .4rem .65rem; background: #1a1f2e; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: .85rem; outline: none; font-family: inherit; line-height: 1.45; }
+  .answer-edit-inline textarea { min-height: 64px; resize: vertical; }
+  .answer-edit-inline input:focus,
+  .answer-edit-inline textarea:focus { border-color: var(--accent); }
   .answer-edit-inline select { padding: .4rem .65rem; background: #1a1f2e; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: .85rem; outline: none; cursor: pointer; }
 
   /* ── Add answer form ── */
   .add-answer-form { display: flex; gap: .5rem; align-items: flex-start; flex-wrap: wrap; padding: .75rem; background: #0d1018; border: 1px dashed var(--border); border-radius: 8px; }
-  .add-answer-form input { flex: 1; min-width: 200px; padding: .45rem .75rem; background: #1a1f2e; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: .85rem; outline: none; }
-  .add-answer-form input:focus { border-color: var(--accent); }
+  .add-answer-form input,
+  .add-answer-form textarea { flex: 1; min-width: 200px; padding: .45rem .75rem; background: #1a1f2e; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: .85rem; outline: none; font-family: inherit; line-height: 1.45; }
+  .add-answer-form textarea { min-height: 64px; resize: vertical; }
+  .add-answer-form input:focus,
+  .add-answer-form textarea:focus { border-color: var(--accent); }
   .add-answer-form select { padding: .45rem .65rem; background: #1a1f2e; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: .85rem; outline: none; cursor: pointer; }
 
   /* ── Diagram panel ── */
@@ -451,7 +458,7 @@ function renderCard(q, i, visibleList) {
       </div>
       <!-- Add answer form -->
       <div class="add-answer-form">
-        <input id="na-text-${q.id}" placeholder="Answer text…" style="flex:1;min-width:200px;" />
+        <textarea id="na-text-${q.id}" placeholder="Answer text…" rows="3" style="flex:1;min-width:200px;"></textarea>
         <select id="na-qual-${q.id}" onchange="autoScore(${q.id})">
           <option value="Excellent">Excellent</option>
           <option value="Good">Good</option>
@@ -611,7 +618,7 @@ function renderAnswerRow(a, qid) {
 </div>
 <div id="aedit-${a.id}" style="display:none;padding:.5rem 0;">
   <div class="answer-edit-inline">
-    <input id="ae-text-${a.id}" value="${esc(a.text)}" placeholder="Answer text…" />
+    <textarea id="ae-text-${a.id}" placeholder="Answer text…" rows="3">${esc(a.text)}</textarea>
     <select id="ae-qual-${a.id}" onchange="autoScoreEdit(${a.id})">
       ${["Excellent","Good","Acceptable","Poor","Dangerous"].map(q =>
         `<option value="${q}"${q===a.quality_label?" selected":""}>${q}</option>`).join("")}
