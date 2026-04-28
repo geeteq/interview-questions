@@ -31,6 +31,9 @@
   .page-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
   .page-hd h2 { font-size: 1.25rem; font-weight: 700; }
   .page-hd p  { font-size: .82rem; color: var(--sub); margin-top: .2rem; }
+  #q-count .time-ok    { color: #4ade80; font-weight: 600; }
+  #q-count .time-tight { color: #facc15; font-weight: 600; }
+  #q-count .time-over  { color: #f87171; font-weight: 600; }
 
   /* ── Category filter bar ── */
   .cat-bar { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1.25rem; align-items: center; }
@@ -264,6 +267,25 @@ let counts = { active: 0, archived: 0 };
 
 const QUALITY_SCORES = { Excellent: 4, Good: 3, Acceptable: 2, Poor: 1, Dangerous: 0 };
 const DIFF_LABELS    = ["", "Basic", "Easy", "Moderate", "Hard", "Expert"];
+const TARGET_MINUTES = {{ target_interview_minutes }};
+
+function totalMinutes() {
+  return questions.reduce((s, q) => s + (q.avg_minutes || 0), 0);
+}
+
+function updateBankSummary() {
+  const label   = view === "archived" ? "archived question" : "question";
+  const count   = questions.length;
+  const total   = totalMinutes();
+  const status  = total > TARGET_MINUTES        ? "over"
+                : total > TARGET_MINUTES * 0.9  ? "tight"
+                : "ok";
+  document.getElementById("q-count").innerHTML =
+    `${count} ${label}${count !== 1 ? "s" : ""}` +
+    ` &middot; max ${maxScore()} pts total` +
+    ` &middot; <span class="time-${status}">${total.toFixed(1)} min</span>` +
+    ` of ${TARGET_MINUTES} min allocated`;
+}
 
 // ── Toast ──────────────────────────────────────────────────────────────────────
 function toast(msg, isErr = false) {
@@ -303,9 +325,7 @@ async function load() {
   document.getElementById("count-archived").textContent = counts.archived;
 
   questions = view === "archived" ? archived : active;
-  const label = view === "archived" ? "archived question" : "question";
-  document.getElementById("q-count").textContent =
-    `${questions.length} ${label}${questions.length !== 1 ? "s" : ""} · max ${maxScore()} pts total`;
+  updateBankSummary();
   rebuildCategoryBar();
   render();
 }
@@ -744,8 +764,7 @@ async function addAnswer(qid) {
     await loadAnswers(qid);
     // Refresh answer_count badge without full reload
     questions = await api("/api/questions");
-    document.getElementById("q-count").textContent =
-      `${questions.length} question${questions.length !== 1 ? "s" : ""} · max ${maxScore()} pts total`;
+    updateBankSummary();
   } catch(e) { toast(e.message, true); }
 }
 
