@@ -731,7 +731,7 @@
       opt.innerHTML = `
         <input type="radio" name="answer" value="${a.id}">
         <div class="answer-body">
-          <div class="answer-text">${escHtml(a.text)}</div>
+          <div class="answer-text">${escAnswer(a.text)}</div>
           <div class="answer-footer">
             <span class="quality-badge ${qualityClass(a.quality)}">${a.quality}</span>
             <span class="points-badge">${a.points} / ${q.max_points} pts</span>
@@ -1114,6 +1114,12 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  // Render answer text — same escaping as escHtml, but dashes "-" become line
+  // breaks so multi-clause answers can be authored with "-" as a separator.
+  function escAnswer(str) {
+    return escHtml(str).replace(/-/g, "<br>");
   }
 
   function fmtDate(iso) {
