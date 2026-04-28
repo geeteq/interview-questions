@@ -236,9 +236,7 @@ ok "Dependencies installed"
 # ── 5 — Database ───────────────────────────────────────────────────────────────
 header "5/7 — Database"
 
-if [[ -f "$DB" ]]; then
-  warn "Database already exists — skipping init (data preserved)"
-else
+run_init() {
   case "$INIT_MODE" in
     master)
       info "Loading full master question bank from master.sql…"
@@ -256,6 +254,28 @@ else
       ok "Database initialised with sample questions"
       ;;
   esac
+}
+
+if [[ -f "$DB" ]]; then
+  if [[ "$INIT_MODE" == "auto" ]]; then
+    info "Existing database found at $DB — preserving (no init flag passed)"
+  else
+    warn "Existing database found at $DB"
+    warn "You passed --${INIT_MODE} which would re-seed it from scratch."
+    read -rp "  Overwrite existing database? Existing data will be backed up. (y/N): " OVERWRITE
+    if [[ "${OVERWRITE:-n}" =~ ^[Yy] ]]; then
+      BACKUP="${DB}.before-$(date -u +%Y%m%dT%H%M%SZ).bak"
+      info "Backing up current DB → $BACKUP"
+      cp -p "$DB" "$BACKUP"
+      chown "$APP_USER:$APP_USER" "$BACKUP"
+      rm -f "$DB" "${DB}-shm" "${DB}-wal"
+      run_init
+    else
+      info "Keeping existing database (skipping --${INIT_MODE})"
+    fi
+  fi
+else
+  run_init
 fi
 
 as_interview mkdir -p "$LOG_DIR"
