@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Interview — Category Order</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:        #0f1117;
+    --surface:   #161925;
+    --border:    #252840;
+    --muted:     #374151;
+    --text:      #e8eaf0;
+    --sub:       #94a3b8;
+    --accent:    #6366f1;
+    --accent-lt: #818cf8;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: .75rem 2rem; display: flex; align-items: center; gap: 1.5rem; }
+  .header h1 { font-size: 1.05rem; font-weight: 700; color: var(--accent-lt); white-space: nowrap; }
+  .nav-tabs { display: flex; gap: .25rem; }
+  .nav-tab { font-size: .82rem; font-weight: 600; padding: .35rem .85rem; border-radius: 7px; text-decoration: none; color: var(--sub); transition: all .15s; }
+  .nav-tab:hover  { background: #1e2130; color: var(--text); }
+  .nav-tab.active { background: #1e2130; color: var(--accent-lt); }
+
+  main { max-width: 760px; margin: 0 auto; padding: 2rem; }
+  .page-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; gap: 1rem; flex-wrap: wrap; }
+  .page-hd h2 { font-size: 1.25rem; font-weight: 700; }
+  .page-hd p  { font-size: .82rem; color: var(--sub); margin-top: .2rem; }
+
+  .btn { display: inline-flex; align-items: center; gap: .35rem; padding: .5rem 1rem; border: none; border-radius: 8px; font-size: .85rem; font-weight: 600; cursor: pointer; transition: all .15s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #4f46e5; }
+  .btn-primary:disabled { background: #2d2d55; color: #555; cursor: not-allowed; }
+  .btn-ghost   { background: #1e2130; color: var(--sub); border: 1px solid var(--border); }
+  .btn-ghost:hover { color: var(--text); border-color: #3d4166; }
+  .btn-icon { padding: .28rem .5rem; font-size: .8rem; background: #1e2130; color: var(--sub); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; transition: all .15s; }
+  .btn-icon:hover { color: var(--text); border-color: #3d4166; }
+  .btn-icon:disabled { opacity: .3; cursor: not-allowed; }
+
+  .cat-list { display: flex; flex-direction: column; gap: .55rem; }
+  .cat-row {
+    display: grid;
+    grid-template-columns: 36px 30px 1fr auto auto;
+    align-items: center;
+    gap: .8rem;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: .75rem 1rem;
+    transition: border-color .15s;
+  }
+  .cat-row:hover { border-color: #3d4166; }
+  .cat-row.dirty { border-color: var(--accent); }
+
+  .rank { font-size: .75rem; font-weight: 800; color: var(--accent-lt); background: #1e2238; border: 1px solid #2d3058; border-radius: 6px; padding: .2rem .5rem; text-align: center; }
+  .reorder-btns { display: flex; flex-direction: column; gap: 2px; }
+  .cat-name { font-size: .95rem; font-weight: 600; color: var(--text); }
+  .cat-meta { font-size: .76rem; color: var(--sub); margin-top: .15rem; }
+  .cat-meta .badge {
+    display: inline-block; font-size: .68rem; font-weight: 700; letter-spacing: .05em;
+    padding: .12rem .5rem; border-radius: 4px; margin-right: .3rem;
+    background: #11211e; color: #5eead4; border: 1px solid #1a3a36;
+  }
+  .priority-input {
+    width: 75px; padding: .4rem .55rem; text-align: center;
+    background: #1a1f2e; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-size: .85rem; font-weight: 600; outline: none;
+    transition: border-color .2s;
+  }
+  .priority-input:focus { border-color: var(--accent); }
+
+  .save-bar {
+    position: sticky; bottom: 1rem; margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: .5rem;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: .75rem 1rem;
+  }
+  .save-bar .status { font-size: .82rem; color: var(--sub); margin-right: auto; align-self: center; }
+
+  .empty { text-align: center; padding: 3rem; color: var(--sub); }
+
+  #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #1e2a3a; border: 1px solid #2d4060; border-radius: 10px; padding: .7rem 1rem; font-size: .85rem; color: #60a5fa; opacity: 0; transform: translateY(8px); transition: all .25s; pointer-events: none; z-index: 999; }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.err  { background: #2a1010; border-color: #3d1010; color: #f87171; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🎙 Interview</h1>
+  <nav class="nav-tabs">
+    <a href="{{ base_path }}/admin"            class="nav-tab">Interview</a>
+    <a href="{{ base_path }}/admin/questions"  class="nav-tab">Questions</a>
+    <a href="{{ base_path }}/admin/categories" class="nav-tab active">Category order</a>
+    <a href="{{ base_path }}/admin/sessions"   class="nav-tab">Sessions</a>
+  </nav>
+</div>
+
+<main>
+  <div class="page-hd">
+    <div>
+      <h2>Question category order</h2>
+      <p>Lower priority comes first when building or running a session. Use the arrows to nudge categories up or down, or type a number to set priority directly.</p>
+    </div>
+  </div>
+
+  <div id="cat-list" class="cat-list">
+    <div class="empty">Loading…</div>
+  </div>
+
+  <div class="save-bar">
+    <span class="status" id="save-status">No changes.</span>
+    <button class="btn btn-ghost"   id="btn-reset" disabled>Reset</button>
+    <button class="btn btn-primary" id="btn-save"  disabled>Save changes</button>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+const BASE = "{{ base_path }}";
+let original = [];   // server snapshot (for reset/diff)
+let working  = [];   // edited copy
+
+function el(id) { return document.getElementById(id); }
+function escHtml(s) { return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function toast(m, err) {
+  const t = el("toast"); t.textContent = m; t.className = "show" + (err ? " err" : "");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.className = "", 1800);
+}
+async function api(path, opts = {}) {
+  const r = await fetch(BASE + path, { headers: { "Content-Type": "application/json" }, ...opts });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || d.error) throw new Error(d.error || `HTTP ${r.status}`);
+  return d;
+}
+
+async function load() {
+  const rows = await api("/api/categories");
+  original = rows.map(r => ({ ...r }));
+  working  = rows.map(r => ({ ...r }));
+  render();
+}
+
+function isDirty() {
+  if (working.length !== original.length) return true;
+  const byCat = new Map(original.map(r => [r.category, r.priority]));
+  return working.some(r => byCat.get(r.category) !== r.priority);
+}
+
+function refreshControls() {
+  const dirty = isDirty();
+  el("btn-save").disabled  = !dirty;
+  el("btn-reset").disabled = !dirty;
+  el("save-status").textContent = dirty
+    ? "Unsaved changes — click Save to apply."
+    : "No changes.";
+}
+
+function sortWorking() {
+  // Stable sort by priority then alpha so two equal priorities stay deterministic.
+  working.sort((a, b) =>
+    (a.priority - b.priority) || a.category.localeCompare(b.category)
+  );
+}
+
+function render() {
+  sortWorking();
+  const list = el("cat-list");
+  if (!working.length) {
+    list.innerHTML = `<div class="empty">No categories yet — add a question first.</div>`;
+    refreshControls();
+    return;
+  }
+  const origByCat = new Map(original.map(r => [r.category, r.priority]));
+  list.innerHTML = working.map((row, i) => {
+    const dirty = origByCat.get(row.category) !== row.priority;
+    const total = (row.active_count || 0);
+    const mins  = (row.active_minutes || 0).toFixed(1);
+    return `
+      <div class="cat-row${dirty ? " dirty" : ""}" data-cat="${escHtml(row.category)}">
+        <div class="rank">${String(i+1).padStart(2,"0")}</div>
+        <div class="reorder-btns">
+          <button class="btn-icon" data-up="${escHtml(row.category)}"   ${i === 0 ? "disabled" : ""} title="Move up">▲</button>
+          <button class="btn-icon" data-down="${escHtml(row.category)}" ${i === working.length-1 ? "disabled" : ""} title="Move down">▼</button>
+        </div>
+        <div>
+          <div class="cat-name">${escHtml(row.category)}</div>
+          <div class="cat-meta">
+            <span class="badge">${total} active question${total === 1 ? "" : "s"}</span>
+            <span class="badge">⏱ ${mins} min</span>
+            ${row.archived_count ? `<span class="badge">${row.archived_count} archived</span>` : ""}
+          </div>
+        </div>
+        <input type="number" class="priority-input" data-cat-input="${escHtml(row.category)}"
+               value="${row.priority}" step="1" min="1" />
+        <span style="font-size:.7rem;color:var(--sub);">priority</span>
+      </div>`;
+  }).join("");
+
+  list.querySelectorAll("[data-up]").forEach(b => {
+    b.addEventListener("click", () => moveBy(b.dataset.up, -1));
+  });
+  list.querySelectorAll("[data-down]").forEach(b => {
+    b.addEventListener("click", () => moveBy(b.dataset.down, +1));
+  });
+  list.querySelectorAll("[data-cat-input]").forEach(inp => {
+    inp.addEventListener("change", () => {
+      const cat = inp.dataset.catInput;
+      const val = parseInt(inp.value, 10);
+      if (Number.isFinite(val) && val >= 1) {
+        working.find(r => r.category === cat).priority = val;
+        render();
+      }
+    });
+  });
+
+  refreshControls();
+}
+
+function moveBy(category, delta) {
+  // Renumber everything 1..n based on current visual order so the swap is robust
+  // even if two rows had identical priorities.
+  sortWorking();
+  working.forEach((r, i) => r.priority = i + 1);
+  const idx = working.findIndex(r => r.category === category);
+  const tgt = idx + delta;
+  if (tgt < 0 || tgt >= working.length) return;
+  [working[idx].priority, working[tgt].priority] = [working[tgt].priority, working[idx].priority];
+  render();
+}
+
+el("btn-reset").addEventListener("click", () => {
+  working = original.map(r => ({ ...r }));
+  render();
+  toast("Reset to last saved state.");
+});
+
+el("btn-save").addEventListener("click", async () => {
+  el("btn-save").disabled = true;
+  try {
+    await api("/api/categories/reorder", {
+      method: "POST",
+      body: JSON.stringify(working.map(r => ({ category: r.category, priority: r.priority }))),
+    });
+    toast("Category order saved.");
+    await load();
+  } catch (e) {
+    toast(e.message, true);
+    el("btn-save").disabled = false;
+  }
+});
+
+load().catch(e => toast(e.message, true));
+</script>
+</body>
+</html>
