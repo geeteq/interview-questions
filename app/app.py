@@ -253,6 +253,7 @@ def admin_question(sid):
             "category":    q["category"],
             "difficulty":  q["difficulty"],
             "weight":      q["weight"],
+            "avg_minutes": q["avg_minutes"],
             "max_points":  round(q["weight"] * 4, 2),
             "has_diagram": bool(q["diagram_xml"]),
             "diagram_published_at": sq["published_at"] if sq else None,

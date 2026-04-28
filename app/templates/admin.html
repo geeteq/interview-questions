@@ -442,6 +442,7 @@
         <span class="badge badge-cat"    id="q-cat">—</span>
         <span class="badge badge-diff"   id="q-diff">—</span>
         <span class="badge badge-weight" id="q-weight">—</span>
+        <span class="badge badge-time"   id="q-time">—</span>
       </div>
       <p class="q-text" id="q-text">—</p>
 
@@ -504,7 +505,7 @@
     <div class="card" id="panel-new-session">
       <p class="card-title">Start new interview</p>
       <input type="text" id="candidate-input" placeholder="Candidate full name" />
-      <button class="btn btn-primary" id="btn-start">▶ Start Session</button>
+      <button class="btn btn-primary" id="btn-start">Create new session</button>
     </div>
 
     <!-- Past sessions -->
@@ -513,6 +514,13 @@
       <div id="past-list" style="display:flex;flex-direction:column;gap:.5rem;font-size:.83rem;">
         <span style="color:var(--muted)">Loading…</span>
       </div>
+    </div>
+
+    <!-- Question timer (visible only during an active session) -->
+    <div class="card" id="panel-timer" style="display:none;">
+      <p class="card-title">Question time remaining</p>
+      <div id="timer-clock" style="font-size:2.6rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;text-align:center;letter-spacing:.04em;color:var(--accent-lt);">—:—</div>
+      <p id="timer-budget" style="text-align:center;font-size:.78rem;color:var(--sub);margin-top:.45rem;">Budget — min</p>
     </div>
 
   </div>
@@ -555,6 +563,8 @@
   let previewQuestions  = [];   // [{ id, text, category, difficulty, weight }, …]
   let diagramQid        = null;
   let diagramPublishedAt = null;
+  let timerInterval     = null;
+  let timerDeadlineMs   = 0;
 
   // ── DOM refs ───────────────────────────────────────────────────────────────
   const el = id => document.getElementById(id);
@@ -638,6 +648,45 @@
   // ── Difficulty label ───────────────────────────────────────────────────────
   const diffLabel = ["", "Basic", "Easy", "Moderate", "Hard", "Expert"];
 
+  // ── Sidebar panel toggle (session active vs idle) ──────────────────────────
+  function setSidebarSessionMode(active) {
+    el("panel-new-session").style.display = active ? "none" : "";
+    el("panel-past").style.display        = active ? "none" : "";
+    el("panel-timer").style.display       = active ? ""     : "none";
+  }
+
+  // ── Question countdown timer ───────────────────────────────────────────────
+  function startQuestionTimer(avgMinutes) {
+    stopQuestionTimer();
+    const budget = Math.max(0, Number(avgMinutes) || 0);
+    el("timer-budget").textContent = `Budget ${budget.toFixed(1)} min (avg)`;
+    timerDeadlineMs = Date.now() + budget * 60 * 1000;
+    renderTimer();
+    timerInterval = setInterval(renderTimer, 1000);
+  }
+
+  function stopQuestionTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  function renderTimer() {
+    const clock = el("timer-clock");
+    const remainingMs = timerDeadlineMs - Date.now();
+    const overdue     = remainingMs < 0;
+    const absSec      = Math.floor(Math.abs(remainingMs) / 1000);
+    const mm          = Math.floor(absSec / 60);
+    const ss          = absSec % 60;
+    clock.textContent = (overdue ? "+" : "") + String(mm).padStart(2, "0") + ":" + String(ss).padStart(2, "0");
+    if (overdue) {
+      clock.style.color = "#f87171";
+    } else if (remainingMs < 30000) {
+      clock.style.color = "#facc15";
+    } else {
+      clock.style.color = "var(--accent-lt)";
+    }
+  }
+
   // ── Load current question ──────────────────────────────────────────────────
   async function loadQuestion(sid) {
     const data = await api(`/api/sessions/${sid}/question`);
@@ -659,7 +708,10 @@
     el("q-cat").textContent    = q.category;
     el("q-diff").textContent   = diffLabel[q.difficulty] || `Level ${q.difficulty}`;
     el("q-weight").textContent = `Weight ×${q.weight}  |  Max ${q.max_points} pts`;
+    el("q-time").textContent   = `⏱ Avg ${(q.avg_minutes || 0).toFixed(1)} min`;
     el("q-text").textContent   = q.text;
+
+    startQuestionTimer(q.avg_minutes || 0);
 
     // Answers
     selectedAnswerId = null;
@@ -723,6 +775,7 @@
     el("header-status").textContent  = `Active · ${candidateName}`;
     el("panel-results").classList.remove("visible");
 
+    setSidebarSessionMode(true);
     toast(`Rejoined session — ${candidateName}`, 3000);
     await loadQuestion(sid);
     loadPastSessions();
@@ -750,7 +803,7 @@
       showPreview();
     } finally {
       el("btn-start").disabled    = false;
-      el("btn-start").textContent = "▶ Start Session";
+      el("btn-start").textContent = "Create new session";
     }
   });
 
@@ -860,6 +913,7 @@
       previewCandidate = "";
       previewQuestions = [];
 
+      setSidebarSessionMode(true);
       toast(`Session started for ${name}`);
       await loadQuestion(activeSessionId);
       loadPastSessions();
@@ -936,6 +990,8 @@
     activeSessionId    = null;
     selectedAnswerId   = null;
     isLastQuestion     = false;
+    stopQuestionTimer();
+    setSidebarSessionMode(false);
     chatStop && chatStop();
 
     el("session-info").style.display     = "none";
@@ -983,6 +1039,8 @@
     activeSessionId = null;
     diagramQid = null;
     diagramPublishedAt = null;
+    stopQuestionTimer();
+    setSidebarSessionMode(false);
     chatStop();
     loadPastSessions();
   }
