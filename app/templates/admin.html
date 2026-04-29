@@ -508,9 +508,9 @@
       <button class="btn btn-primary" id="btn-start">Create new session</button>
     </div>
 
-    <!-- Past sessions -->
+    <!-- Sessions (active + past) -->
     <div class="card" id="panel-past">
-      <p class="card-title">Past sessions</p>
+      <p class="card-title">Sessions</p>
       <div id="past-list" style="display:flex;flex-direction:column;gap:.5rem;font-size:.83rem;">
         <span style="color:var(--muted)">Loading…</span>
       </div>
@@ -1045,7 +1045,7 @@
     loadPastSessions();
   }
 
-  // ── Past sessions ──────────────────────────────────────────────────────────
+  // ── Sessions list ──────────────────────────────────────────────────────────
   async function loadPastSessions() {
     const sessions = await api("/api/sessions");
     const list     = el("past-list");
@@ -1061,42 +1061,38 @@
       const isCurrent = s.id === activeSessionId;
 
       const row = document.createElement("div");
-      row.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:.4rem .5rem;border-radius:7px;cursor:pointer;gap:.4rem;";
+      row.style.cssText = "display:flex;align-items:center;padding:.4rem .5rem;border-radius:7px;gap:.45rem;";
       row.style.background = isCurrent ? "#1b1e35" : "#11141d";
       row.style.border = `1px solid ${isCurrent ? "var(--accent)" : "var(--border)"}`;
 
       const nameSpan = document.createElement("span");
-      nameSpan.style.cssText = "font-weight:600;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+      nameSpan.style.cssText = "font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
       nameSpan.textContent = s.candidate_name;
-
-      const actionSpan = document.createElement("span");
-      actionSpan.style.cssText = "font-size:.7rem;padding:.2rem .55rem;border-radius:5px;flex-shrink:0;";
-
-      if (isCurrent) {
-        actionSpan.textContent = "● Live";
-        actionSpan.style.background = "#1b2e48";
-        actionSpan.style.color      = "#60a5fa";
-      } else if (isActive) {
-        actionSpan.textContent = "Rejoin →";
-        actionSpan.style.background = "#1e2d48";
-        actionSpan.style.color      = "#93c5fd";
-        actionSpan.style.fontWeight = "700";
-      } else {
-        actionSpan.textContent = "Done";
-        actionSpan.style.background = "#14291a";
-        actionSpan.style.color      = "#4ade80";
-      }
-
       row.appendChild(nameSpan);
-      row.appendChild(actionSpan);
 
-      if (isActive && !isCurrent) {
-        row.title = "Click to rejoin this session";
-        row.addEventListener("click", () => rejoinSession(s.id, s.candidate_name));
-        row.onmouseenter = () => { row.style.borderColor = "#3d5a8a"; row.style.background = "#141828"; };
-        row.onmouseleave = () => { row.style.borderColor = "var(--border)"; row.style.background = "#11141d"; };
-      } else if (s.completed_at) {
-        row.title = "Click to view results";
+      if (isActive) {
+        const pill = document.createElement("span");
+        pill.style.cssText = "font-size:.65rem;font-weight:800;letter-spacing:.06em;padding:.18rem .55rem;border-radius:5px;background:#1e2d48;color:#60a5fa;border:1px solid #1e3a5f;flex-shrink:0;";
+        pill.textContent = isCurrent ? "● ACTIVE" : "ACTIVE";
+        row.appendChild(pill);
+
+        if (!isCurrent) {
+          const joinBtn = document.createElement("button");
+          joinBtn.type = "button";
+          joinBtn.style.cssText = "font-size:.72rem;font-weight:700;padding:.25rem .7rem;border-radius:6px;border:none;background:var(--accent);color:#fff;cursor:pointer;flex-shrink:0;transition:background .15s;";
+          joinBtn.textContent = "Join";
+          joinBtn.addEventListener("mouseenter", () => joinBtn.style.background = "#4f46e5");
+          joinBtn.addEventListener("mouseleave", () => joinBtn.style.background = "var(--accent)");
+          joinBtn.addEventListener("click", () => rejoinSession(s.id, s.candidate_name));
+          row.appendChild(joinBtn);
+        }
+      } else {
+        const doneSpan = document.createElement("span");
+        doneSpan.style.cssText = "font-size:.7rem;padding:.2rem .55rem;border-radius:5px;background:#14291a;color:#4ade80;flex-shrink:0;";
+        doneSpan.textContent = "Done";
+        row.appendChild(doneSpan);
+        row.title  = "Click to view results";
+        row.style.cursor = "pointer";
         row.addEventListener("click", () => showResults(s.id));
         row.onmouseenter = () => row.style.borderColor = "#3d4166";
         row.onmouseleave = () => row.style.borderColor = "var(--border)";
@@ -1128,15 +1124,12 @@
   }
 
   // ── Init ───────────────────────────────────────────────────────────────────
-  (async () => {
-    await loadPastSessions();
-    // Auto-rejoin any session that is still active
-    if (!activeSessionId) {
-      const sessions = await api("/api/sessions");
-      const active   = sessions.find(s => !s.completed_at);
-      if (active) rejoinSession(active.id, active.candidate_name);
-    }
-  })();
+  // Always start at the no-session state — if a session is in progress
+  // (started by this admin in another tab, or by another admin), it shows
+  // up in the Sessions list with an ACTIVE pill + Join button so the admin
+  // chooses to join explicitly. Polling keeps the list in sync.
+  loadPastSessions();
+  setInterval(loadPastSessions, 5000);
 
   // ── Admin Chat ─────────────────────────────────────────────────────────────
   const ADMIN_NAME_KEY = "interviewAdminName";
